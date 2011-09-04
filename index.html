@@ -5,36 +5,424 @@
 
         <title>zhangquan</title>
         <script type="text/javascript" src="assets/jquery-1.6.2.min.js"></script>
-       
+        <style type="text/css">
+
+            html,
+            body{
+                padding:0;
+                margin: 0;
+            }
+            .main{
+                padding: 10px;
+            }
+            .editor{
+                position: relative;
+                border: solid 1px black;
+                height:300px;
+                cursor:text;
+                font-family: Monaco,"Menlo","Courier New",monospace;
+                font-size: 12px;
+
+            }
+            .editor .text{
+                display: block;
+                width: 100%;
+                border: none;
+                position: absolute;
+                top:0px;
+                left:0px;
+                width: 100%;
+                height:100%;
+                z-index: 0;
+
+            }
+            .editor .text .full-char-width{
+                display: inline-block;
+                text-align: center;
+            }
+            .editor .input{
+                display: block;
+                width: 10px;
+                border: solid  1px blue;
+                position: absolute;
+                top:280px;
+                left:0px;
+                height:16px;
+                z-index: 0;
+
+
+            }
+            .editor .cursor{
+                position: absolute;
+                top:0;
+                left:0;
+                width: 10px;
+                height: 16px;
+                border-left: solid 1px black;
+                visibility:hidden;
+
+            }
+            .editor .show{
+                visibility:visible;
+            }
+            .log{
+                height: 20px;
+                border: solid 1px blue;
+
+            }
+
+
+
+
+        </style>
     <body>
-    <style type="text/css">
-       .main{
-           height:100%;
-       };
-      .layout-left,
-      .layout-center,
-      .layout-right{
-          float:left;
-          border:solid 1px red;
-          padding:5px;
-      };
-      .layout-left{
-          width:200px;
-      };
-      .layout-center{
-          width:100%;
-      }
-    </style>
-    <div class="main">
-       <div class="layout-left"></div>
-       <div class="layout-center"></div>
-       <div class="layout-right"></div>
-    </div>
 
-    <script type="text/javascript">
-      
-    </script>
+        <div class="main">
 
 
-</body>
+
+            <div id="editor" class="editor">
+
+                <div class="text"></div>
+                <div class="cursor"></div>
+                <textarea class="input">23</textarea>
+            </div>
+            <div class="log"></div>
+
+
+
+
+        </div>
+
+        <script type="text/javascript">
+          
+
+            /*----------------------Document------------------*/
+
+            function Document(value,render){
+                this._value = [],
+                this.setValue(value||"");
+                this.render = render;
+
+            }
+            Document.prototype={
+                setValue:function(value){
+
+                    this.insert(value,{row:0,column:0});
+                },
+                getValue:function(){
+                    return this._value.join("\n");
+                },
+                insert:function(value, position){
+                    // {row:3,clum:5}
+                    var lines = this._split(value);
+                    var firstLine =lines.splice(0,1)[0];
+                    var lastLine = lines.length == 0 ? null : lines.splice(lines.length - 1, 1)[0];
+                    
+                    var position =this.insertInLine(firstLine,position);
+                    if (lastLine !== null) {
+                       
+                        position =this.insertNewLines(lines, {row:position.row+1});
+                        position = this.insertInLine(lastLine || "",position);
+                    }
+                    
+
+
+                },
+                insertInLine:function(value, position){
+                    console.log(position.row)
+                    var line = this._value[position.row]||"";
+                    console.log(line);
+                    line.substring(0, position.column)
+                    this._value[position.row] = line.substring(0, position.column) + value + line.substring(position.column);
+                   
+                    this.updateLine(this._value[position.row],position.row);
+                    return {
+                        row:position.row,
+                        column:position.column
+                    }
+
+                },
+               
+                insertNewLines:function(value, position){
+                    if(value.length!=0){
+                    this._value.splice(position.row, 0 ,value);
+                    
+                    for(var i=0;i<value.lenght;i++){
+                        this.updateLine(value[i],position.row+i );
+                    }
+                    }
+                    return {
+                        row:position.row+value.length,
+                        column:position.column
+                    }
+                },
+                updateLine:function(value, row){
+                    var self = this;
+                    window.setTimeout(function(){
+                        if(self.onUpdateLine){
+                            self.onUpdateLine(value,row)
+                        }
+                    }, 0)
+                   
+                },
+                _split:function(value){
+                    return  value.replace(/\r\n|\r/g, "\n").split("\n");
+
+                }
+            }
+
+
+
+
+
+            /*----------------------render------------------*/
+
+            function Render(doc){
+                this.container = $("#editor");
+                this.text = $(".text");
+                this.cursor = $(".cursor");
+                this.cursorPosition={
+                    x:0,
+                    y:0
+                },
+                this.input = $(".input");
+                this.charSize = this.measureSizes();
+                this.doc=doc;
+                var self=this;
+                this.doc.onUpdateLine=function(value,row){
+                    console.log("renderLine :"+value+":"+row)
+                    self.renderLine(value, row);
+                  
+                }
+                this.on();
+            }
+                
+            Render.prototype={
+                on:function(){
+                    var self=this;
+                    var el = this.container;
+                    
+                    el.focusin(function(){
+                        self.input.focus();
+                        self.showCursor();
+                      
+                    })
+                    el.focusout(function(){
+                        self.hideCursor();
+                        self.input.blur();
+                    })
+                    el.mousedown(function(ev){
+                        var pageX = ev.pageX,
+                        pageY = ev.pageY;
+                        self.input.focus();
+                        var offset = el.offset();
+                        self.setCursorPosition(pageX - offset.left, pageY - offset.top-10);
+                        ev.preventDefault();
+
+                    })
+                  
+                   
+
+
+                    self.input.keyup(function(ev){
+                        var keyCode = ev.keyCode;
+
+                      
+                        if(keyCode ==32){
+
+                        }
+                        self.inputChar(self.input.val())
+                        self.input.val("");
+                    })
+                   
+              
+                },
+                inputChar:function(value){
+                    var charCode = value.charCodeAt(0);
+
+                    if(charCode == 10){
+                        newLine();
+                        this.setCursorY(this.cursorPosition.y+this.charSize.height)
+                        return;
+                    }
+                    var width = this.charSize.width;
+
+                    if(this.isFullWidth( charCode)){
+                       
+                        width*=2;
+                    }
+
+                    this.setCursorX(this.cursorPosition.x+width)
+                   
+                    this.doc.insert(value, {column:this.cursorPosition.column,row:this.cursorPosition.row});
+                },
+
+                showCursor:function(){
+                       
+                    var self=this;
+                    this._cursorTimer =window.setInterval(function(){
+                        self.cursor.toggleClass("show")
+                    }, 500)
+                },
+                hideCursor:function(){
+                    if( this._cursorTimer){
+                        window.clearInterval(this._cursorTimer);
+                        this._cursorTimer = null;
+                    }
+                       
+                    this.cursor.toggleClass("show",false)
+                        
+                },
+               
+                renderLine:function(value, row){
+                    var split = value.split();
+                    var token = [];
+                    for(var i =0;i<split.length;i++){
+                        if(this.isFullWidth(split[i].charCodeAt(0))){
+                            token.push('<span class="full-char-width" style="width:'+this.charSize.width+'px">'+split[i]+'</span>')
+                        }
+                        else
+                            token.push(split[i]);
+                    }
+                    console.log(token)
+                    
+                    var lineNode = $(".line:eq("+row+")",this.text);
+                    
+                    if(lineNode.length==0){
+                       
+                        lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+                        
+                        this.text.append(lineNode);
+                    }
+                   
+                    lineNode.html(token.join(""));
+
+                },
+                isFullWidth:function(c) {
+                    if (c < 0x1100)
+                        return false;
+                    return c >= 0x1100 && c <= 0x115F ||
+                        c >= 0x11A3 && c <= 0x11A7 ||
+                        c >= 0x11FA && c <= 0x11FF ||
+                        c >= 0x2329 && c <= 0x232A ||
+                        c >= 0x2E80 && c <= 0x2E99 ||
+                        c >= 0x2E9B && c <= 0x2EF3 ||
+                        c >= 0x2F00 && c <= 0x2FD5 ||
+                        c >= 0x2FF0 && c <= 0x2FFB ||
+                        c >= 0x3000 && c <= 0x303E ||
+                        c >= 0x3041 && c <= 0x3096 ||
+                        c >= 0x3099 && c <= 0x30FF ||
+                        c >= 0x3105 && c <= 0x312D ||
+                        c >= 0x3131 && c <= 0x318E ||
+                        c >= 0x3190 && c <= 0x31BA ||
+                        c >= 0x31C0 && c <= 0x31E3 ||
+                        c >= 0x31F0 && c <= 0x321E ||
+                        c >= 0x3220 && c <= 0x3247 ||
+                        c >= 0x3250 && c <= 0x32FE ||
+                        c >= 0x3300 && c <= 0x4DBF ||
+                        c >= 0x4E00 && c <= 0xA48C ||
+                        c >= 0xA490 && c <= 0xA4C6 ||
+                        c >= 0xA960 && c <= 0xA97C ||
+                        c >= 0xAC00 && c <= 0xD7A3 ||
+                        c >= 0xD7B0 && c <= 0xD7C6 ||
+                        c >= 0xD7CB && c <= 0xD7FB ||
+                        c >= 0xF900 && c <= 0xFAFF ||
+                        c >= 0xFE10 && c <= 0xFE19 ||
+                        c >= 0xFE30 && c <= 0xFE52 ||
+                        c >= 0xFE54 && c <= 0xFE66 ||
+                        c >= 0xFE68 && c <= 0xFE6B ||
+                        c >= 0xFF01 && c <= 0xFF60 ||
+                        c >= 0xFFE0 && c <= 0xFFE6;
+                },
+                stringRepeat:function  (string, count) {
+                    return new Array(count + 1).join(string);
+                },
+                measureSizes:function() {
+                    var n = 1000;
+
+                    var measureNode =  $("<div>");
+                    measureNode.css({
+                        height:"auto",
+                        width:"auto",
+                        visibility : "hidden",
+                        position : "absolute",
+                        overflow : "visible",
+                        whiteSpace : "nowrap"
+
+                    })
+
+
+
+                    // in FF 3.6 monospace fonts can have a fixed sub pixel width.
+                    // that's why we have to measure many characters
+                    // Note: characterWidth can be a float!
+                    measureNode.html(this.stringRepeat("Xy", n));
+
+
+                    measureNode.appendTo(this.container);
+
+                    var size = {
+                        height: measureNode.height(),
+                        width: measureNode.width() / (n * 2)
+                    };
+
+
+
+                    return size;
+                },
+                setCursorY:function (y){
+                    var p  = this.cursorPosition;
+                    p.row = Math.round((y)/this.charSize.height);
+                    if(p.row<=0)p.row=0
+                    if(p.row>=this.doc._value.length-1)p.row=this.doc._value.length-1;
+                    console.log(p.row)
+                    p.y=p.row*this.charSize.height;
+                    this.cursor.css("top", p.y+"px");
+
+                },
+                setCursorX:function (x){
+                    var p  = this.cursorPosition;
+                    
+                    p.column = Math.round(x/this.charSize.width);
+                    var length =this.doc._value[p.row].length;
+                    if(p.column<=0)p.column=0;
+                    if(p.column>=length)p.column=length;
+                    p.x = p.column*this.charSize.width;
+                    this.cursor.css("left", p.x+"px");
+
+                },
+                cursorNextColumn:function(){
+                    this.setCursorX(this.cursorPosition.x+this.charSize.width);
+                },
+                cursorNextRow:function(){
+                    this.setCursorY(this.cursorPosition.y+this.charSize.height);
+                },
+
+                setCursorPosition:function (x,y){
+                    
+                    this.setCursorY(y);
+                    this.setCursorX(x);
+                }
+
+                 
+            }
+ 
+            function Editor(text){
+
+                this.doc = new Document(text);
+
+                this.render = new Render(this.doc);
+
+            }
+
+            new Editor('var t = "hello world" \n var b = "hello1234"')
+ 
+           
+
+
+        </script>
+
+
+    </body>
 </html>

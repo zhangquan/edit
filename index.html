@@ -49,6 +49,7 @@
                 left:0px;
                 height:16px;
                 z-index: 0;
+                opacity:0.1
 
 
             }
@@ -143,29 +144,85 @@
                     }
 
                 },
+
                
                 insertNewLines:function(value, position){
-                    if(value.length!=0){
-                    this._value.splice(position.row, 0 ,value);
+                   
+                    for(var i=0;i<value.length;i++){
+                        this._value.splice(position.row+i, 0 ,value[i]);
+                        console.log("--")
+                        console.log(this._value);
+                        this.updateLine(value[i],position.row+i,true);
+                    }
                     
-                    for(var i=0;i<value.lenght;i++){
-                        this.updateLine(value[i],position.row+i );
-                    }
-                    }
                     return {
                         row:position.row+value.length,
                         column:position.column
                     }
                 },
-                updateLine:function(value, row){
+                updateLine:function(value, row, newLine){
                     var self = this;
                     window.setTimeout(function(){
                         if(self.onUpdateLine){
-                            self.onUpdateLine(value,row)
+                            self.onUpdateLine(value,row, newLine)
                         }
                     }, 0)
                    
                 },
+                breakLine:function(position){
+                   
+                    var line = this._value[position.row];
+                    var value = line.substring(position.column)||"" ;
+                    this.removeInLine(position.row,position.column);
+                    var lines =[]
+                    lines[0] = value
+                    this.insertNewLines(lines,{row:position.row+1,column:position.column})
+
+
+                },
+                remove:function(range){
+                    var start = range.start,
+                    end = range.end,
+                    num = end.row - start.row;
+
+
+                    
+                    if(num == 0) this.removeInline(start.row, start.column, end.column);
+                    if(num > 0){
+                        var newLines = [];
+                        for(var i = 0;i<num-1;i++){
+                            newLines.push(start.row+1);
+                        }
+
+
+                        this.removeInline(start.row, start.column)
+                        this.removeNewLines(newLines)
+                        this.removeInline(start.row,0, end.column)
+                    }
+                    
+                },
+                removeInLine:function(row, start ,end){
+                   
+                    var value = this._value[row];
+                    if(value){
+                        this._value[row] = value.substring(0,start+1);
+                        console.log("remove start:"+this._value[row])
+                        if(end)this._value[row]+=value.substring(end+1)
+                        console.log("remove end:"+value.substring(end+1))
+
+                        this.updateLine(this._value[row],row);
+                    }
+
+
+                },
+                removeNewLines:function(lines){
+                    
+                    this._value.splice(lines[0], lines.length-1 );
+                    for(var i = 0;i<lines.length;i++){
+                        this.updateLine(null,lines[i]);
+                    }
+                },
+
                 _split:function(value){
                     return  value.replace(/\r\n|\r/g, "\n").split("\n");
 
@@ -190,9 +247,9 @@
                 this.charSize = this.measureSizes();
                 this.doc=doc;
                 var self=this;
-                this.doc.onUpdateLine=function(value,row){
+                this.doc.onUpdateLine=function(value,row, newLine){
                     console.log("renderLine :"+value+":"+row)
-                    self.renderLine(value, row);
+                    self.renderLine(value, row,newLine);
                   
                 }
                 this.on();
@@ -227,35 +284,41 @@
 
                     self.input.keyup(function(ev){
                         var keyCode = ev.keyCode;
+                        console.log("keyCode"+keyCode);
+                        var height = self.charSize.height,
+                        width  =self.charSize.width;
 
                       
-                        if(keyCode ==32){
+                        if(keyCode ==8){
+                            self.setCursorX(self.cursorPosition.x-width);
+                            self.doc.removeInLine(self.cursorPosition.row,self.cursorPosition.column,self.cursorPosition.column+1);
+                        }
+                        else if(keyCode ==13){
+                            
+                            self.doc.breakLine({column:self.cursorPosition.column,row:self.cursorPosition.row});
+                            self.setCursorY(self.cursorPosition.y+height);
+                            self.setCursorX(0);
 
                         }
-                        self.inputChar(self.input.val())
+                        else{
+                            var value = self.input.val();
+                            
+                            if(self.isFullWidth( value.charCodeAt(0))){
+                                width*=2;
+                            }
+
+                            self.setCursorX(self.cursorPosition.x+width);
+                            self.doc.insert(value, {column:self.cursorPosition.column,row:self.cursorPosition.row});
+                           
+                        }
                         self.input.val("");
+                       
                     })
                    
               
                 },
                 inputChar:function(value){
-                    var charCode = value.charCodeAt(0);
-
-                    if(charCode == 10){
-                        newLine();
-                        this.setCursorY(this.cursorPosition.y+this.charSize.height)
-                        return;
-                    }
-                    var width = this.charSize.width;
-
-                    if(this.isFullWidth( charCode)){
-                       
-                        width*=2;
-                    }
-
-                    this.setCursorX(this.cursorPosition.x+width)
-                   
-                    this.doc.insert(value, {column:this.cursorPosition.column,row:this.cursorPosition.row});
+                  
                 },
 
                 showCursor:function(){
@@ -274,8 +337,22 @@
                     this.cursor.toggleClass("show",false)
                         
                 },
+
                
-                renderLine:function(value, row){
+                renderLine:function(value, row, newRow){
+                    var lineNode= $(".line:eq("+row+")",this.text);;
+                    if(newRow){
+                        
+                        var newLine =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+                        if(lineNode.length!=0) newLine.insertBefore(lineNode);
+                        else this.text.append(newLine);
+                        lineNode = newLine;
+                    }
+                    
+
+                    if(value==null&&lineNode.length!=0){
+                        lineNode.remove();
+                    }
                     var split = value.split();
                     var token = [];
                     for(var i =0;i<split.length;i++){
@@ -285,9 +362,7 @@
                         else
                             token.push(split[i]);
                     }
-                    console.log(token)
-                    
-                    var lineNode = $(".line:eq("+row+")",this.text);
+                  
                     
                     if(lineNode.length==0){
                        
@@ -297,6 +372,9 @@
                     }
                    
                     lineNode.html(token.join(""));
+
+                },
+                newLine:function(){
 
                 },
                 isFullWidth:function(c) {
@@ -379,6 +457,7 @@
                     console.log(p.row)
                     p.y=p.row*this.charSize.height;
                     this.cursor.css("top", p.y+"px");
+                    this.input.css("top", p.y+"px");
 
                 },
                 setCursorX:function (x){
@@ -390,6 +469,7 @@
                     if(p.column>=length)p.column=length;
                     p.x = p.column*this.charSize.width;
                     this.cursor.css("left", p.x+"px");
+                     this.input.css("left", p.x+10+"px");
 
                 },
                 cursorNextColumn:function(){

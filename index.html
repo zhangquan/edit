@@ -49,7 +49,9 @@
                 left:0px;
                 height:16px;
                 z-index: 0;
-                opacity:0.1
+                opacity:0;
+
+
 
 
             }
@@ -84,9 +86,10 @@
 
             <div id="editor" class="editor">
 
-                <div class="text"></div>
+               
                 <div class="cursor"></div>
-                <textarea class="input">23</textarea>
+                <textarea class="input"></textarea>
+                 <div class="text"></div>
             </div>
             <div class="log"></div>
 
@@ -104,7 +107,6 @@
                 this._value = [],
                 this.setValue(value||"");
                 this.render = render;
-
             }
             Document.prototype={
                 setValue:function(value){
@@ -131,12 +133,13 @@
 
                 },
                 insertInLine:function(value, position){
-                    console.log(position.row)
+                    
                     var line = this._value[position.row]||"";
-                    console.log(line);
-                    line.substring(0, position.column)
+                  
+                  
                     this._value[position.row] = line.substring(0, position.column) + value + line.substring(position.column);
-                   
+                    console.log("position.column:"+position.column)
+                    console.log(line.substring(0, position.column))
                     this.updateLine(this._value[position.row],position.row);
                     return {
                         row:position.row,
@@ -150,8 +153,7 @@
                    
                     for(var i=0;i<value.length;i++){
                         this._value.splice(position.row+i, 0 ,value[i]);
-                        console.log("--")
-                        console.log(this._value);
+                       
                         this.updateLine(value[i],position.row+i,true);
                     }
                     
@@ -173,7 +175,7 @@
                    
                     var line = this._value[position.row];
                     var value = line.substring(position.column)||"" ;
-                    this.removeInLine(position.row,position.column);
+                    this.removeInLine(position.row,position.column+1);
                     var lines =[]
                     lines[0] = value
                     this.insertNewLines(lines,{row:position.row+1,column:position.column})
@@ -205,10 +207,10 @@
                    
                     var value = this._value[row];
                     if(value){
-                        this._value[row] = value.substring(0,start+1);
-                        console.log("remove start:"+this._value[row])
-                        if(end)this._value[row]+=value.substring(end+1)
-                        console.log("remove end:"+value.substring(end+1))
+                        this._value[row] = value.substring(0,start-1);
+                       
+                        if(end)this._value[row]+=value.substring(end)
+                    
 
                         this.updateLine(this._value[row],row);
                     }
@@ -224,6 +226,7 @@
                 },
 
                 _split:function(value){
+                    
                     return  value.replace(/\r\n|\r/g, "\n").split("\n");
 
                 }
@@ -248,7 +251,7 @@
                 this.doc=doc;
                 var self=this;
                 this.doc.onUpdateLine=function(value,row, newLine){
-                    console.log("renderLine :"+value+":"+row)
+                   
                     self.renderLine(value, row,newLine);
                   
                 }
@@ -284,14 +287,15 @@
 
                     self.input.keyup(function(ev){
                         var keyCode = ev.keyCode;
-                        console.log("keyCode"+keyCode);
+                        console.log("input keyCode"+keyCode);
                         var height = self.charSize.height,
                         width  =self.charSize.width;
 
                       
                         if(keyCode ==8){
-                            self.setCursorX(self.cursorPosition.x-width);
+                           
                             self.doc.removeInLine(self.cursorPosition.row,self.cursorPosition.column,self.cursorPosition.column+1);
+                            self.setCursorX(self.cursorPosition.x-width);
                         }
                         else if(keyCode ==13){
                             
@@ -306,9 +310,8 @@
                             if(self.isFullWidth( value.charCodeAt(0))){
                                 width*=2;
                             }
-
-                            self.setCursorX(self.cursorPosition.x+width);
                             self.doc.insert(value, {column:self.cursorPosition.column,row:self.cursorPosition.row});
+                            self.setCursorX(self.cursorPosition.x+width);
                            
                         }
                         self.input.val("");
@@ -353,15 +356,21 @@
                     if(value==null&&lineNode.length!=0){
                         lineNode.remove();
                     }
-                    var split = value.split();
+                    var split = value.split("");
                     var token = [];
-                    for(var i =0;i<split.length;i++){
-                        if(this.isFullWidth(split[i].charCodeAt(0))){
-                            token.push('<span class="full-char-width" style="width:'+this.charSize.width+'px">'+split[i]+'</span>')
+                    for(var i = 0;i<split.length;i++){
+                        //escapeHTML
+                        var c = split[i];
+                        switch(c){
+                            case " ":c = "&nbsp;";break;
                         }
-                        else
-                            token.push(split[i]);
+                        token.push(c);
+                       // console.log("render token "+i)
+                       // console.log(split[i])
                     }
+
+                   console.log("render token")
+                    console.log(token)
                   
                     
                     if(lineNode.length==0){
@@ -372,6 +381,9 @@
                     }
                    
                     lineNode.html(token.join(""));
+
+                },
+                escapeHtml:function(){
 
                 },
                 newLine:function(){
@@ -454,7 +466,7 @@
                     p.row = Math.round((y)/this.charSize.height);
                     if(p.row<=0)p.row=0
                     if(p.row>=this.doc._value.length-1)p.row=this.doc._value.length-1;
-                    console.log(p.row)
+                    console.log("cursor row:"+p.row)
                     p.y=p.row*this.charSize.height;
                     this.cursor.css("top", p.y+"px");
                     this.input.css("top", p.y+"px");
@@ -467,9 +479,10 @@
                     var length =this.doc._value[p.row].length;
                     if(p.column<=0)p.column=0;
                     if(p.column>=length)p.column=length;
+                    console.log("cursor column:"+p.column)
                     p.x = p.column*this.charSize.width;
                     this.cursor.css("left", p.x+"px");
-                     this.input.css("left", p.x+10+"px");
+                    this.input.css("left", p.x+10+"px");
 
                 },
                 cursorNextColumn:function(){

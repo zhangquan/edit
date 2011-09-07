@@ -50,10 +50,6 @@
                 height:16px;
                 z-index: 0;
                 opacity:0;
-
-
-
-
             }
             .editor .cursor{
                 position: absolute;
@@ -85,7 +81,10 @@
 
 
             <div id="editor" class="editor">
+                <div class="selection">
 
+
+                </div>
 
                 <div class="cursor"></div>
                 <textarea class="input"></textarea>
@@ -134,9 +133,7 @@
                 },
                 insertInLine:function(value, position){
                     
-                    var line = this._value[position.row]||"";
-                  
-                  
+                    var line = this._value[position.row]||"";   
                     this._value[position.row] = line.substring(0, position.column) + value + line.substring(position.column);
                     console.log("position.column:"+position.column)
                     console.log(line.substring(0, position.column))
@@ -285,57 +282,57 @@
 
                     self.input.bind("keydown",function(ev){
                         
-                            var keyCode = ev.keyCode;
-                            console.log("input keyCode"+keyCode);
-                            console.log("input code:"+ self.input.val())
-                            var height = self.charSize.height,
-                            width  =self.charSize.width;
+                        var keyCode = ev.keyCode;
+                        console.log("input keyCode"+keyCode);
+                        console.log("input code:"+ self.input.val())
+                        var height = self.charSize.height,
+                        width  =self.charSize.width;
 
-                            //delete
-                            if(keyCode ==8){
+                        //delete
+                        if(keyCode ==8){
 
-                                self.doc.removeInLine(self.cursorPosition.row,self.cursorPosition.column,self.cursorPosition.column+1);
-                                self.setCursorX(self.cursorPosition.x-width);
-                                ev.preventDefault()
-                            }
-                            //left
-                            else if(keyCode ==37){
-                                self.cursorLeftColumn()
-                                ev.preventDefault()
-                            }
-                            //up
-                            else if(keyCode ==38){
-                                self.cursorUpRow()
-                                ev.preventDefault()
-                            }
-                            //right
-                            else if(keyCode ==39){
-                                self.cursorRightColumn()
-                                ev.preventDefault()
-                            }
-                            //down
-                            else if(keyCode ==40){
-                                self.cursorDownRow();
-                                ev.preventDefault()
-                            }
-                            //enter
-                            else if(keyCode ==13){
+                            self.doc.removeInLine(self.cursorPosition.row,self.cursorPosition.column,self.cursorPosition.column+1);
+                            self.setCursorX(self.cursorPosition.x-width);
+                            ev.preventDefault();
+                        }
+                        //left
+                        else if(keyCode ==37){
+                            self.cursorLeftColumn()
+                            ev.preventDefault()
+                        }
+                        //up
+                        else if(keyCode ==38){
+                            self.cursorUpRow()
+                            ev.preventDefault()
+                        }
+                        //right
+                        else if(keyCode ==39){
+                            self.cursorRightColumn()
+                            ev.preventDefault()
+                        }
+                        //down
+                        else if(keyCode ==40){
+                            self.cursorDownRow();
+                            ev.preventDefault()
+                        }
+                        //enter
+                        else if(keyCode ==13){
 
-                                self.doc.breakLine({column:self.cursorPosition.column,row:self.cursorPosition.row});
-                                self.setCursorY(self.cursorPosition.y+height);
-                                self.setCursorX(0);
-                                ev.preventDefault()
+                            self.doc.breakLine({column:self.cursorPosition.column,row:self.cursorPosition.row});
+                            self.setCursorY(self.cursorPosition.y+height);
+                            self.setCursorX(0);
+                            ev.preventDefault()
 
-                            }
-                            //default
-                            else{
-                                var value = self.input.val();
-                                 if(!value) return;
-                                self.doc.insert(value, {column:self.cursorPosition.column,row:self.cursorPosition.row});
-                                self.setCursorX(self.cursorPosition.x+width);
+                        }
+                        //default
+                        else{
+                            var value = self.input.val();
+                            if(!value) return;
+                            self.doc.insert(value, {column:self.cursorPosition.column,row:self.cursorPosition.row});
+                            self.setCursorX(self.cursorPosition.x+width);
 
-                            }
-                            self.input.val("");
+                        }
+                        self.input.val("");
 
 
 
@@ -346,12 +343,12 @@
                     })
                     self.input.keyup(function(){
                         var value = self.input.val();
-                                 if(!value) return;
-                                  var height = self.charSize.height,
-                            width  =self.charSize.width;
-                                self.doc.insert(value, {column:self.cursorPosition.column,row:self.cursorPosition.row});
-                                self.setCursorX(self.cursorPosition.x+width);
-                                self.input.val("")
+                        if(!value) return;
+                        var height = self.charSize.height,
+                        width  =self.charSize.width;
+                        self.doc.insert(value, {column:self.cursorPosition.column,row:self.cursorPosition.row});
+                        self.setCursorX(self.cursorPosition.x+width);
+                        self.input.val("")
 
                     });
                     self.input.bind("change",function(){
@@ -546,6 +543,62 @@
                 }
 
                  
+            }
+
+
+            function Selection(el){
+                this.el = el;
+            }
+            Selection.prototype={
+                on:function(){
+                    var self = this;
+                    var el = this.el;
+                    
+                    el.mousedown(function(ev){
+                        self.status = true;
+                        self.range={};
+                        var pageX =pageX;
+                        var pageY =pageY;
+                       
+                        self.range.start={
+                            x:pageX - el.offsetLeft,
+                            y:pageY - el.offsetTop
+                        }
+                        
+                        self.range.end = {
+                            x:pageX - el.offsetLeft,
+                            y:pageY - el.offsetTop
+                        }
+                        
+                    })
+
+
+                    el.mouseup(function(ev){
+                        self.status = false;
+                       
+                    })
+                    
+                    el.mousemove(function(ev){
+                        if(self.status){
+                            var pageX =ev.pageX;
+                            var pageY =ev.pageY;
+                            self.range.end = {
+                                x:pageX - el.offsetLeft,
+                                y:pageY - el.offsetTop
+                            }
+                            window.setTimeout(function(){
+                                if(self.onChange){
+                                  self.onChange(this.range)
+                                }
+                            }, 0)
+
+                        }
+                    })
+
+                },
+                getRange:function(){
+                    return this.range;
+                }
             }
  
             function Editor(text){

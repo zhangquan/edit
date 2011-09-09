@@ -196,6 +196,10 @@
                         this.removeNewLines(newLines)
                         this.removeInline(start.row,0, end.column)
                     }
+                    return {
+                        start:start,
+                        end:start
+                    }
                     
                 },
                 removeInLine:function(row, start ,end){
@@ -218,6 +222,10 @@
                     for(var i = 0;i<lines.length;i++){
                         this.updateLine(null,lines[i]);
                     }
+                },
+                replace:function(value, range){
+                    var range =  this.remove(range);
+                    this.insert(value,range.start);
                 },
 
                 _split:function(value){
@@ -588,7 +596,7 @@
                             }
                             window.setTimeout(function(){
                                 if(self.onChange){
-                                  self.onChange(this.range)
+                                    self.onChange(this.range)
                                 }
                             }, 0)
 
@@ -596,9 +604,99 @@
                     })
 
                 },
+
                 getRange:function(){
                     return this.range;
                 }
+            }
+
+            function Cursor(el){
+                this.el = el;
+            }
+            Cursor.prototype={
+                on:function(){
+                    var el = this.el;
+                    var self = this;
+                    el.mousedown(function(ev){
+                        var pageX = ev.pageX,
+                        pageY = ev.pageY;
+                        var offset = el.offset();
+                        self.setCursorPosition(pageX - offset.left, pageY - offset.top-10);
+                      
+                    })
+
+                    self.input.bind("keydown",function(ev){
+
+                        var keyCode = ev.keyCode;
+                      
+                    
+ 
+                        //left
+                        if(keyCode ==37){
+                            self.cursorLeftColumn()
+                            ev.preventDefault()
+                        }
+                        //up
+                        else if(keyCode ==38){
+                            self.cursorUpRow()
+                            ev.preventDefault()
+                        }
+                        //right
+                        else if(keyCode ==39){
+                            self.cursorRightColumn()
+                            ev.preventDefault()
+                        }
+                        //down
+                        else if(keyCode ==40){
+                            self.cursorDownRow();
+                            ev.preventDefault()
+                        }
+                    })
+                        
+                },
+                setCursorY:function (y){
+                    var p  = this.cursorPosition;
+                    p.row = Math.round((y)/this.charSize.height);
+                    if(p.row<=0)p.row=0
+                    if(p.row>=this.doc._value.length-1)p.row=this.doc._value.length-1;
+                    console.log("cursor row:"+p.row)
+                    p.y=p.row*this.charSize.height;
+                    this.cursor.css("top", p.y+"px");
+                    this.input.css("top", p.y+"px");
+
+                },
+                setCursorX:function (x){
+                    var p  = this.cursorPosition;
+
+                    p.column = Math.round(x/this.charSize.width);
+                    var length =this.doc._value[p.row].length;
+                    if(p.column<=0)p.column=0;
+                    if(p.column>=length)p.column=length;
+                    console.log("cursor column:"+p.column)
+                    p.x = p.column*this.charSize.width;
+                    this.cursor.css("left", p.x+"px");
+                    this.input.css("left", p.x+10+"px");
+
+                },
+                cursorRightColumn:function(){
+                    this.setCursorX(this.cursorPosition.x+this.charSize.width);
+                },
+                cursorDownRow:function(){
+                    this.setCursorY(this.cursorPosition.y+this.charSize.height);
+                },
+                cursorLeftColumn:function(){
+                    this.setCursorX(this.cursorPosition.x-this.charSize.width);
+                },
+                cursorUpRow:function(){
+                    this.setCursorY(this.cursorPosition.y-this.charSize.height);
+                },
+
+                setCursorPosition:function (x,y){
+                    this.setCursorY(y);
+                    this.setCursorX(x);
+                }
+
+                
             }
  
             function Editor(text){

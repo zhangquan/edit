@@ -45,13 +45,16 @@ var tokens = function (source, prefix, suffix) {
     var make = function (type, value) {
 
         // Make a token object.
-
-        return {
+          var o ={
             type: type,
             value: value,
             from: from,
             to: i
         };
+        o.error =function(msg){
+            throw new Error(msg)
+        }
+        return o;
     };
 
     // Begin tokenization. If the source string is empty, return nothing.

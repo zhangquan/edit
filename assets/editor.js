@@ -1,8 +1,15 @@
 /*----------------------Document------------------*/
+var CMD_ADD = 1,
+CMD_REMOVE =2,
+CMD_UPDATE =3;
+
+
+var worker;
 function escapeHTML(s){
 
-return s.replace(/&/g, "&amp;").
-replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/ /g,"&nbsp;") }
+    return (s+"").replace(/&/g, "&amp;").
+        replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/ /g,"&nbsp;")
+}
 
 function Document(value,render){
     this._value = []
@@ -41,7 +48,7 @@ Document.prototype={
             var value = this._value[end.row]||"";
             var tempValue = value.substring(end.column);
             this._value[end.row] = value.substring(0,end.column)+lines[0];
-            this.updateLine(this._value[end.row] , end.row);
+            this.updateLine(this._value[end.row] , end.row, CMD_UPDATE);
             lines[lines.length-1] =lines[lines.length-1]+ tempValue
             
             var addLines =[];
@@ -55,7 +62,7 @@ Document.prototype={
 
 
 
-        /*var firstLine =lines.splice(0,1)[0];
+            /*var firstLine =lines.splice(0,1)[0];
                         var lastLine = lines.length == 0 ? null : lines.splice(lines.length - 1, 1)[0];
 
                         end =this.insertInLine(firstLine,end.row,end.column);
@@ -78,7 +85,7 @@ Document.prototype={
         var line = this._value[row]||"";
         this._value[row] = line.substring(0, column) + value + line.substring(column);
 
-        this.updateLine(this._value[row],row);
+        this.updateLine(this._value[row],row, CMD_UPDATE);
         return {
             row:row,
             column:column+value.length
@@ -92,7 +99,7 @@ Document.prototype={
         for(var i=0;i<value.length;i++){
             this._value.splice(row+i, 0 ,value[i]);
             
-            this.updateLine(value[i],row+i,true);
+            this.updateLine(value[i],row+i, CMD_ADD);
         }
 
         return {
@@ -100,11 +107,11 @@ Document.prototype={
             column:0
         }
     },
-    updateLine:function(value, row, newLine){
+    updateLine:function(value, row, cmd){
         var self = this;
 
         if(self.onUpdateLine){
-            self.onUpdateLine(value,row, newLine)
+            self.onUpdateLine(value, row, cmd)
         }
 
 
@@ -119,6 +126,9 @@ Document.prototype={
         lines[0] = value
         this.insertNewLines(lines,position.row+1)
 
+
+    },
+    mergeLine:function(row){
 
     },
     remove:function(range){
@@ -136,16 +146,13 @@ Document.prototype={
 
             this._value[start.row] = first.substring(0, start.column)+last.substring(end.column);
             
-            this.updateLine( this._value[start.row] ,start.row);
+            this.updateLine( this._value[start.row] ,start.row, CMD_UPDATE);
             var newLines = [];
             for(var i = 0;i<num;i++){
                 newLines.push(start.row+i+1);
             }
 
             this.removeNewLines(newLines)
-
-
-
         }
 
         return start;
@@ -155,11 +162,14 @@ Document.prototype={
         var row = range.start.row,
         column = range.start.column;
         if(row==0&&column==0){
-            return;
+            return {
+                row:0,
+                column:0
+            };
         }
         if(column == 0){
             range.start.row =row -1;
-            range.start.column = this._value[row-1].length-1;
+            range.start.column = this._value[row-1].length  ;
         }else{
             range.start.column = column-1;
         }
@@ -179,7 +189,7 @@ Document.prototype={
             if(end)this._value[row]+=value.substring(end)
 
 
-            this.updateLine(this._value[row],row);
+            this.updateLine(this._value[row],row,CMD_UPDATE);
         }
 
 
@@ -188,8 +198,8 @@ Document.prototype={
 
         this._value.splice(lines[0], lines.length-1 );
         for(var i = lines.length-1;i>=0;i--){
-            console.log("remove line: "+lines[i])
-            this.updateLine(null,lines[i]);
+          
+            this.updateLine(null,lines[i],CMD_REMOVE);
         }
     },
     replace:function(value, range){
@@ -214,6 +224,7 @@ Document.prototype={
 function Render(doc){
     this.container = $("#editor");
     this.text = $(".text");
+    this.hightlight = $(".hightlight");
     this.cursor = $(".cursor");
     this.cursorPosition={
         x:0,
@@ -227,9 +238,9 @@ function Render(doc){
     this.charSize = this.measureSizes();
     this.doc=doc;
     var self=this;
-    this.doc.onUpdateLine=function(value,row, newLine){
+    this.doc.onUpdateLine=function(value,row, cmd){
 
-        self.renderLine(value, row,newLine);
+        self.renderLine(value, row, cmd);
 
     }
     this.on();
@@ -359,8 +370,8 @@ Render.prototype={
                 ev.preventDefault()
 
             }
-        //default
-        /*    else{
+            //default
+            /*    else{
                             var value = self.input.val();
                             if(!value) return;
 
@@ -380,7 +391,7 @@ Render.prototype={
 
                         }
                         self.input.val("");
-                         */
+             */
 
 
         })
@@ -432,7 +443,144 @@ Render.prototype={
     },
 
 
-    renderLine:function(value, row, newRow){
+    renderLine:function(value, row, cmd){
+        if(!value)value =""
+        var self = this;
+        var   escapeValue=escapeHTML(value)
+        
+
+        
+        var lineNode;
+      
+        if(cmd == CMD_ADD){
+           
+            lineNode= $(".line:eq("+row+")",this.text)  ;
+            
+
+   
+            var newLine =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+          
+            if(lineNode.length != 0){
+                newLine.insertBefore(lineNode);
+            }
+            else{
+                this.text.append(newLine);
+            }
+            lineNode = newLine;
+            lineNode.html(escapeValue);
+            
+        }
+
+
+       
+        if(cmd == CMD_UPDATE){
+           
+            lineNode= $(".line:eq("+row+")",this.text)  ;
+
+            if(lineNode.length ==0){
+
+   
+                lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+
+                this.text.append(lineNode);
+              
+            }
+            lineNode.html(escapeValue);
+                
+        }
+        if(cmd == CMD_REMOVE){
+           
+            lineNode= $(".line:eq("+row+")",this.text);
+          
+            lineNode.remove();
+            
+        }
+
+       /* window.setTimeout(function(){
+            try{
+                self.hightLighter(value, row, cmd);
+            }catch(e){
+                showError(e)
+            }
+            
+        }, 2000)
+        
+    */
+      /*  if(!worker)worker =new Worker("assets/worker_tokens.js");
+        worker.onmessage=function(e){
+           
+            self.worker(e.data, row,cmd);
+        }
+        worker.postMessage(value)
+
+           */
+
+
+        },
+    worker:function(token,row,cmd){
+       
+        var value="";
+        token=token?token:[];
+        for(var i=0;i<token.length;i++){
+         
+            if(token[i].type=="string")token[i].value ='"'+token[i].value+'"';
+            if(token[i].type=="comment")token[i].value ='//'+token[i].value;
+
+            value+='<span class='+token[i].type+'>'+escapeHTML(token[i].value)+'</span>'
+        }
+
+
+        var lineNode;
+
+        if(cmd == CMD_ADD){
+          
+            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
+
+
+
+            var newLine =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+
+            if(lineNode.length != 0){
+                newLine.insertBefore(lineNode);
+            }
+            else{
+                this.hightlight.append(newLine);
+            }
+            lineNode = newLine;
+            lineNode.html(value);
+            return;
+        }
+
+
+
+        if(cmd == CMD_UPDATE){
+           
+            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
+
+            if(lineNode.length ==0){
+
+
+                lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+
+                this.hightlight.append(lineNode);
+
+            }
+            lineNode.html(value);
+            return;
+        }
+        if(cmd == CMD_REMOVE){
+           
+            lineNode= $(".line:eq("+row+")",this.hightlight);
+
+            lineNode.remove();
+            return;
+        }
+
+
+
+
+    },
+    hightLighter:function(value, row, cmd){
         var temp = value;
         value="";
         var token= tokens(temp);
@@ -440,46 +588,59 @@ Render.prototype={
         for(var i=0;i<token.length;i++){
             if(token[i].type=="string")token[i].value ='"'+token[i].value+'"';
             if(token[i].type=="comment")token[i].value ='//'+token[i].value;
-          /*  if(token[i].type=="whitespace"){
-                var ws="";
-                for(var j=0;j<token[i].value.length;j++){
-                    ws+="&nbsp;"
-                }
-                token[i].value =ws;
-            }*/
+
             value+='<span class='+token[i].type+'>'+escapeHTML(token[i].value)+'</span>'
         }
 
-        
-       
-        var lineNode= $(".line:eq("+row+")",this.text);
-        
-        if(newRow){
+
+        var lineNode;
+
+        if(cmd == CMD_ADD){
+           
+            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
+
+
 
             var newLine =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
-            if(lineNode.length!=0) newLine.insertBefore(lineNode);
-            else this.text.append(newLine);
+
+            if(lineNode.length != 0){
+                newLine.insertBefore(lineNode);
+            }
+            else{
+                this.hightlight.append(newLine);
+            }
             lineNode = newLine;
+            lineNode.html(value);
+            return;
         }
 
 
-        if(value==null&&lineNode.length!=0){
+
+        if(cmd == CMD_UPDATE){
+           
+            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
+
+            if(lineNode.length ==0){
+
+
+                lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+
+                this.hightlight.append(lineNode);
+
+            }
+            lineNode.html(value);
+            return;
+        }
+        if(cmd == CMD_REMOVE){
+           
+            lineNode= $(".line:eq("+row+")",this.hightlight);
+
             lineNode.remove();
             return;
         }
-       
 
 
 
-
-        if(lineNode.length==0){
-
-            lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
-
-            this.text.append(lineNode);
-        }
-
-        lineNode.html(value);
 
     },
     escapeHtml:function(){
@@ -492,37 +653,37 @@ Render.prototype={
         if (c < 0x1100)
             return false;
         return c >= 0x1100 && c <= 0x115F ||
-        c >= 0x11A3 && c <= 0x11A7 ||
-        c >= 0x11FA && c <= 0x11FF ||
-        c >= 0x2329 && c <= 0x232A ||
-        c >= 0x2E80 && c <= 0x2E99 ||
-        c >= 0x2E9B && c <= 0x2EF3 ||
-        c >= 0x2F00 && c <= 0x2FD5 ||
-        c >= 0x2FF0 && c <= 0x2FFB ||
-        c >= 0x3000 && c <= 0x303E ||
-        c >= 0x3041 && c <= 0x3096 ||
-        c >= 0x3099 && c <= 0x30FF ||
-        c >= 0x3105 && c <= 0x312D ||
-        c >= 0x3131 && c <= 0x318E ||
-        c >= 0x3190 && c <= 0x31BA ||
-        c >= 0x31C0 && c <= 0x31E3 ||
-        c >= 0x31F0 && c <= 0x321E ||
-        c >= 0x3220 && c <= 0x3247 ||
-        c >= 0x3250 && c <= 0x32FE ||
-        c >= 0x3300 && c <= 0x4DBF ||
-        c >= 0x4E00 && c <= 0xA48C ||
-        c >= 0xA490 && c <= 0xA4C6 ||
-        c >= 0xA960 && c <= 0xA97C ||
-        c >= 0xAC00 && c <= 0xD7A3 ||
-        c >= 0xD7B0 && c <= 0xD7C6 ||
-        c >= 0xD7CB && c <= 0xD7FB ||
-        c >= 0xF900 && c <= 0xFAFF ||
-        c >= 0xFE10 && c <= 0xFE19 ||
-        c >= 0xFE30 && c <= 0xFE52 ||
-        c >= 0xFE54 && c <= 0xFE66 ||
-        c >= 0xFE68 && c <= 0xFE6B ||
-        c >= 0xFF01 && c <= 0xFF60 ||
-        c >= 0xFFE0 && c <= 0xFFE6;
+            c >= 0x11A3 && c <= 0x11A7 ||
+            c >= 0x11FA && c <= 0x11FF ||
+            c >= 0x2329 && c <= 0x232A ||
+            c >= 0x2E80 && c <= 0x2E99 ||
+            c >= 0x2E9B && c <= 0x2EF3 ||
+            c >= 0x2F00 && c <= 0x2FD5 ||
+            c >= 0x2FF0 && c <= 0x2FFB ||
+            c >= 0x3000 && c <= 0x303E ||
+            c >= 0x3041 && c <= 0x3096 ||
+            c >= 0x3099 && c <= 0x30FF ||
+            c >= 0x3105 && c <= 0x312D ||
+            c >= 0x3131 && c <= 0x318E ||
+            c >= 0x3190 && c <= 0x31BA ||
+            c >= 0x31C0 && c <= 0x31E3 ||
+            c >= 0x31F0 && c <= 0x321E ||
+            c >= 0x3220 && c <= 0x3247 ||
+            c >= 0x3250 && c <= 0x32FE ||
+            c >= 0x3300 && c <= 0x4DBF ||
+            c >= 0x4E00 && c <= 0xA48C ||
+            c >= 0xA490 && c <= 0xA4C6 ||
+            c >= 0xA960 && c <= 0xA97C ||
+            c >= 0xAC00 && c <= 0xD7A3 ||
+            c >= 0xD7B0 && c <= 0xD7C6 ||
+            c >= 0xD7CB && c <= 0xD7FB ||
+            c >= 0xF900 && c <= 0xFAFF ||
+            c >= 0xFE10 && c <= 0xFE19 ||
+            c >= 0xFE30 && c <= 0xFE52 ||
+            c >= 0xFE54 && c <= 0xFE66 ||
+            c >= 0xFE68 && c <= 0xFE6B ||
+            c >= 0xFF01 && c <= 0xFF60 ||
+            c >= 0xFFE0 && c <= 0xFFE6;
     },
     stringRepeat:function  (string, count) {
         return new Array(count + 1).join(string);

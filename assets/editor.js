@@ -8,7 +8,7 @@ var worker;
 function escapeHTML(s){
 
     return (s+"").replace(/&/g, "&amp;").
-        replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/ /g,"&nbsp;")
+    replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/ /g,"&nbsp;")
 }
 
 function Document(value,render){
@@ -62,7 +62,7 @@ Document.prototype={
 
 
 
-            /*var firstLine =lines.splice(0,1)[0];
+        /*var firstLine =lines.splice(0,1)[0];
                         var lastLine = lines.length == 0 ? null : lines.splice(lines.length - 1, 1)[0];
 
                         end =this.insertInLine(firstLine,end.row,end.column);
@@ -103,8 +103,8 @@ Document.prototype={
         }
 
         return {
-            row:row+value.length,
-            column:0
+            row:row+value.length-1,
+            column:value[value.length-1].length
         }
     },
     updateLine:function(value, row, cmd){
@@ -250,7 +250,7 @@ Render.prototype={
     on:function(){
         var self=this;
         var el = this.container;
-        el.bind("select",function(ev){
+        this.text.bind("select",function(ev){
             ev.preventDefault();
         })
 
@@ -309,16 +309,61 @@ Render.prototype={
             }
         })
 
-
+        self.input.bind("cut", function(ev){
+            console.log("cut")
+        })
 
 
         self.input.bind("keydown",function(ev){
 
             var keyCode = ev.keyCode;
+            
+            console.log(keyCode);
 
             var height = self.charSize.height,
             width  =self.charSize.width;
+            // tab
+            if(keyCode == 9){
+                var cursor = self.doc.insert("    ", self.getRange().end)
+                console.log(cursor)
+                
+                self.setCursorRowColumn(cursor.row,cursor.column);
+                self.setRange(self.getCursorPosition(),self.getCursorPosition())
+                ev.preventDefault();
+            }
+            //cut
+            if(ev.ctrlKey&&keyCode == 88){
+                if(self.hasRange(self.getRange())){
+                    var value =self.getRangeValue();
+                    
+                    console.log(value)
+                    if(value)  self.input.val(value)
 
+                    self.input.select();
+  
+                    var position =  self.doc.remove(self.getRange());
+                    self.setCursorRowColumn(position.row,position.column);
+                    self.setRange(self.getCursorPosition(),self.getCursorPosition())
+                }
+               
+                 
+                 
+                
+            }
+            //copy
+            if(ev.ctrlKey&&keyCode == 67){
+                if(self.hasRange(self.getRange())){
+                    var value =self.getRangeValue();
+                    
+                    console.log(value)
+                    if(value)  self.input.val(value)
+
+                    self.input.select();
+  
+                 
+                }
+
+            }
             //delete
             if(keyCode ==8){
                 if(self.hasRange(self.getRange())){
@@ -370,36 +415,20 @@ Render.prototype={
                 ev.preventDefault()
 
             }
-            //default
-            /*    else{
-                            var value = self.input.val();
-                            if(!value) return;
-
-                            if(self.hasRange(self.getRange())){
-                                console.log("repalce")
-                                self.doc.replace(value, self.getRange());
-                                self.setCursorX(self.cursorPosition.x+width);
-                                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-                            }
-                            else {
-                                console.log("insert")
-                                var cursor =  self.doc.insert(value, self.getRange().end);
-                                self.setCursorRowColumn(cursor);
-                                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-                            }
-
-
-                        }
-                        self.input.val("");
-             */
+       
 
 
         })
-        self.input.keyup(function(){
+        self.input.keyup(function(ev){
+            
+            self.input.select();
+            
+           
             var height = self.charSize.height,
             width  =self.charSize.width;
             var value = self.input.val();
             if(!value) return;
+           
             if(self.hasRange(self.getRange())){
                 
                 var cursor = self.doc.replace(value, self.getRange());
@@ -496,91 +525,36 @@ Render.prototype={
             
         }
 
-       /* window.setTimeout(function(){
+        window.setTimeout(function(){
             try{
                 self.hightLighter(value, row, cmd);
             }catch(e){
                 showError(e)
             }
             
-        }, 2000)
-        
-    */
-      /*  if(!worker)worker =new Worker("assets/worker_tokens.js");
-        worker.onmessage=function(e){
-           
-            self.worker(e.data, row,cmd);
-        }
-        worker.postMessage(value)
-
-           */
-
-
-        },
-    worker:function(token,row,cmd){
+        }, 0)
        
-        var value="";
-        token=token?token:[];
-        for(var i=0;i<token.length;i++){
+       
+    /*
+   
+        if(!worker)worker =new Worker("assets/worker_tokens.js");
+        worker.onmessage=function(e){
+           console.log(e.data)
+           self.worker(e.data, row, cmd);
+        }
+      
+        worker.postMessage(value);
+*/
          
-            if(token[i].type=="string")token[i].value ='"'+token[i].value+'"';
-            if(token[i].type=="comment")token[i].value ='//'+token[i].value;
-
-            value+='<span class='+token[i].type+'>'+escapeHTML(token[i].value)+'</span>'
-        }
 
 
-        var lineNode;
-
-        if(cmd == CMD_ADD){
-          
-            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
-
-
-
-            var newLine =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
-
-            if(lineNode.length != 0){
-                newLine.insertBefore(lineNode);
-            }
-            else{
-                this.hightlight.append(newLine);
-            }
-            lineNode = newLine;
-            lineNode.html(value);
-            return;
-        }
-
-
-
-        if(cmd == CMD_UPDATE){
-           
-            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
-
-            if(lineNode.length ==0){
-
-
-                lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
-
-                this.hightlight.append(lineNode);
-
-            }
-            lineNode.html(value);
-            return;
-        }
-        if(cmd == CMD_REMOVE){
-           
-            lineNode= $(".line:eq("+row+")",this.hightlight);
-
-            lineNode.remove();
-            return;
-        }
-
-
+    
 
 
     },
     hightLighter:function(value, row, cmd){
+        
+        this.hightlight = this.text 
         var temp = value;
         value="";
         var token= tokens(temp);
@@ -595,29 +569,9 @@ Render.prototype={
 
         var lineNode;
 
-        if(cmd == CMD_ADD){
-           
-            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
-
-
-
-            var newLine =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
-
-            if(lineNode.length != 0){
-                newLine.insertBefore(lineNode);
-            }
-            else{
-                this.hightlight.append(newLine);
-            }
-            lineNode = newLine;
-            lineNode.html(value);
-            return;
-        }
-
-
-
-        if(cmd == CMD_UPDATE){
-           
+      
+        if(cmd == CMD_UPDATE || cmd == CMD_ADD){
+            console.log("height lineght row:"+row)
             lineNode= $(".line:eq("+row+")",this.hightlight)  ;
 
             if(lineNode.length ==0){
@@ -631,13 +585,7 @@ Render.prototype={
             lineNode.html(value);
             return;
         }
-        if(cmd == CMD_REMOVE){
-           
-            lineNode= $(".line:eq("+row+")",this.hightlight);
-
-            lineNode.remove();
-            return;
-        }
+       
 
 
 
@@ -653,37 +601,37 @@ Render.prototype={
         if (c < 0x1100)
             return false;
         return c >= 0x1100 && c <= 0x115F ||
-            c >= 0x11A3 && c <= 0x11A7 ||
-            c >= 0x11FA && c <= 0x11FF ||
-            c >= 0x2329 && c <= 0x232A ||
-            c >= 0x2E80 && c <= 0x2E99 ||
-            c >= 0x2E9B && c <= 0x2EF3 ||
-            c >= 0x2F00 && c <= 0x2FD5 ||
-            c >= 0x2FF0 && c <= 0x2FFB ||
-            c >= 0x3000 && c <= 0x303E ||
-            c >= 0x3041 && c <= 0x3096 ||
-            c >= 0x3099 && c <= 0x30FF ||
-            c >= 0x3105 && c <= 0x312D ||
-            c >= 0x3131 && c <= 0x318E ||
-            c >= 0x3190 && c <= 0x31BA ||
-            c >= 0x31C0 && c <= 0x31E3 ||
-            c >= 0x31F0 && c <= 0x321E ||
-            c >= 0x3220 && c <= 0x3247 ||
-            c >= 0x3250 && c <= 0x32FE ||
-            c >= 0x3300 && c <= 0x4DBF ||
-            c >= 0x4E00 && c <= 0xA48C ||
-            c >= 0xA490 && c <= 0xA4C6 ||
-            c >= 0xA960 && c <= 0xA97C ||
-            c >= 0xAC00 && c <= 0xD7A3 ||
-            c >= 0xD7B0 && c <= 0xD7C6 ||
-            c >= 0xD7CB && c <= 0xD7FB ||
-            c >= 0xF900 && c <= 0xFAFF ||
-            c >= 0xFE10 && c <= 0xFE19 ||
-            c >= 0xFE30 && c <= 0xFE52 ||
-            c >= 0xFE54 && c <= 0xFE66 ||
-            c >= 0xFE68 && c <= 0xFE6B ||
-            c >= 0xFF01 && c <= 0xFF60 ||
-            c >= 0xFFE0 && c <= 0xFFE6;
+        c >= 0x11A3 && c <= 0x11A7 ||
+        c >= 0x11FA && c <= 0x11FF ||
+        c >= 0x2329 && c <= 0x232A ||
+        c >= 0x2E80 && c <= 0x2E99 ||
+        c >= 0x2E9B && c <= 0x2EF3 ||
+        c >= 0x2F00 && c <= 0x2FD5 ||
+        c >= 0x2FF0 && c <= 0x2FFB ||
+        c >= 0x3000 && c <= 0x303E ||
+        c >= 0x3041 && c <= 0x3096 ||
+        c >= 0x3099 && c <= 0x30FF ||
+        c >= 0x3105 && c <= 0x312D ||
+        c >= 0x3131 && c <= 0x318E ||
+        c >= 0x3190 && c <= 0x31BA ||
+        c >= 0x31C0 && c <= 0x31E3 ||
+        c >= 0x31F0 && c <= 0x321E ||
+        c >= 0x3220 && c <= 0x3247 ||
+        c >= 0x3250 && c <= 0x32FE ||
+        c >= 0x3300 && c <= 0x4DBF ||
+        c >= 0x4E00 && c <= 0xA48C ||
+        c >= 0xA490 && c <= 0xA4C6 ||
+        c >= 0xA960 && c <= 0xA97C ||
+        c >= 0xAC00 && c <= 0xD7A3 ||
+        c >= 0xD7B0 && c <= 0xD7C6 ||
+        c >= 0xD7CB && c <= 0xD7FB ||
+        c >= 0xF900 && c <= 0xFAFF ||
+        c >= 0xFE10 && c <= 0xFE19 ||
+        c >= 0xFE30 && c <= 0xFE52 ||
+        c >= 0xFE54 && c <= 0xFE66 ||
+        c >= 0xFE68 && c <= 0xFE6B ||
+        c >= 0xFF01 && c <= 0xFF60 ||
+        c >= 0xFFE0 && c <= 0xFFE6;
     },
     stringRepeat:function  (string, count) {
         return new Array(count + 1).join(string);
@@ -714,11 +662,13 @@ Render.prototype={
             width: measureNode.width() / (n * 2)
         };
 
-
+        measureNode.remove();
 
         return size;
     },
     setCursorY:function (y){
+        y = y+ this.container.scrollTop();
+        
         var p  = this.cursorPosition;
         p.row = Math.round((y)/this.charSize.height);
        
@@ -742,6 +692,8 @@ Render.prototype={
 
     },
     setCursorX:function (x){
+    
+        x = x+this.container.scrollLeft();
         var p  = this.cursorPosition;
         
         p.column = Math.round(x/this.charSize.width);
@@ -798,6 +750,33 @@ Render.prototype={
         };
         this.renderRange(this.range);
     },
+    getRangeValue:function(){
+        var range = this.range,
+        result = [],
+        start = range.start,
+        end = range.end,
+        num = end.row - start.row;
+        var value = this.doc._value;
+        if(num == 0){
+            result.push(value[start.row].substring(start.column,end.column))
+            console.log(result)
+        }
+        else if(num>0){
+
+            result.push(value[start.row].substring(start.column))
+           
+            for(var i = 0;i<num-1;i++){
+                result.push(value[start.row+i]);
+            }
+            result.push(value[end.row].substring(0, end.column));
+         
+         
+        }
+        return result.join("\n");
+     
+      
+    },
+    
     getRange:function(){
         var  o ={};
         return $.extend(o,this.range) ;

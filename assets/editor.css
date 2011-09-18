@@ -9,7 +9,7 @@ body{
 .editor{
     position: relative;
     border: solid 1px black;
-    min-height:300px;
+    min-height:500px;
     cursor:text;
     font-family: Monaco,"Menlo","Courier New",monospace;
     font-size: 14px;
@@ -57,7 +57,7 @@ body{
     left:0px;
     height:16px;
     z-index: 0;
-    opacity:0;
+   opacity:0;
 }
 .editor .cursor{
     position: absolute;

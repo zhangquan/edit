@@ -20,7 +20,7 @@
 // will match any of these:
 //      <=  >>  >>>  <>  >=  +: -: &: &&: &&
 
-var keywords=["function","var","return","break","for","in","if","else","type","catch"]
+var keywords=["function","var","return","break","for","in","if","else","type","catch"];
 var isKeyword=function(name){
     var result = false;
     for(var i = 0;i<keywords.length;i++){
@@ -301,7 +301,9 @@ var tokens = function (source, prefix, suffix) {
     }
     return result;
 };
+
 self.onmessage =function(e){
-    var ts =tokens(e.data);
+  var ts =tokens(e.data);
+    
     self.postMessage(ts)
 }

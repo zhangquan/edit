@@ -23,31 +23,34 @@
 
 
             <div id="editor" class="editor">
-                <div class="selection">
-                    <div class="range first"></div>
-                    <div class="range center"></div>
-                    <div class="range last"></div>
-
-
+                <div class="line-num"></div>
+                <div class="source">
+                    <div class="selection">
+                        <div class="range first"></div>
+                        <div class="range center"></div>
+                        <div class="range last"></div>
+                    </div>
+                    <div class="cursor"></div>
+                    <textarea class="input"></textarea>
+                    <div class="text"></div>
                 </div>
 
-                <div class="cursor"></div>
-                <textarea class="input"></textarea>
-                <div class="text"></div>
+            </div><textarea class="cmd">run</textarea>
 
-            </div>
+
+
 
             <div style="display:none">   <div><a href="#" onclick="showValue()">value</a>  <a href="#" onclick="showParse()">parse</a></div>
 
-            <pre class="log"></pre>
+                <pre class="log"></pre>
             </div>
-         
+
 
 
 
         </div>
         <pre style="display:none" id="code">
-var editor =  new Editor($("#code").text());
+
 
 function showValue(){
     $(".log").html(editor.doc.getValue());
@@ -61,13 +64,16 @@ function showParse(){
     var t = tokens(editor.doc.getValue())
     $(".log").html(JSON.stringify(t));
 }
-</pre>
+alert(234);
+        </pre>
         <script type="text/javascript">
           
 
             
 
             var editor =  new Editor($("#code").text())
+            
+            
             
  
             function showValue(){
@@ -82,6 +88,24 @@ function showParse(){
                 var t = tokens(editor.doc.getValue())
                 $(".log").html(JSON.stringify(t));
             }
+            
+            
+            var cmd = $(".cmd");
+            cmd.bind("keydown",function(ev){
+                var keyCode= ev.keyCode;
+                console.log(keyCode);
+                if(keyCode =="13"){
+                    var valueArray = editor.doc._split($.trim(cmd.val()));
+                    var value = valueArray[valueArray.length-1];
+                    console.log(valueArray);
+                    if(value == "run"){ 
+                        var t = (editor.doc.getValue());
+                        eval(t);
+                    } 
+                    
+    
+                }
+            })
 
 
 

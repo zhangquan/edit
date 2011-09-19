@@ -24,6 +24,7 @@ Document.prototype={
         });
     },
     getValue:function(){
+   
         return this._value.join("\n");
     },
     onUpdateLine:function(){},
@@ -224,6 +225,7 @@ Document.prototype={
 function Render(doc){
     this.container = $("#editor");
     this.text = $(".text");
+    this.lineNum = $(".line-num");
     this.hightlight = $(".hightlight");
     this.cursor = $(".cursor");
     this.cursorPosition={
@@ -488,6 +490,11 @@ Render.prototype={
 
    
             var newLine =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+            var num= $(".num",this.lineNum);
+            var newNum = $('<div class="num" style="height:'+this.charSize.height+'px">'+(num.length+1)+'</div>');
+            
+            this.lineNum.append(newNum);
+            
           
             if(lineNode.length != 0){
                 newLine.insertBefore(lineNode);
@@ -510,6 +517,10 @@ Render.prototype={
 
    
                 lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+                 var num= $(".num",this.lineNum);
+                var newNum = $('<div class="num" style="height:'+this.charSize.height+'px">'+(num.length+1)+'</div>');
+            
+                this.lineNum.append(newNum);
 
                 this.text.append(lineNode);
               
@@ -519,7 +530,13 @@ Render.prototype={
         }
         if(cmd == CMD_REMOVE){
            
+            var num= $(".num",this.lineNum);
+           
+            num.eq(num.length-1).remove();
+            
             lineNode= $(".line:eq("+row+")",this.text);
+            
+            
           
             lineNode.remove();
             

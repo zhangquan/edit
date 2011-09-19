@@ -3,6 +3,8 @@ var CMD_ADD = 1,
 CMD_REMOVE =2,
 CMD_UPDATE =3;
 
+var actionMemery =[];
+
 
 var worker;
 function escapeHTML(s){
@@ -12,7 +14,9 @@ function escapeHTML(s){
 }
 
 function Document(value,render){
-    this._value = []
+    this._value = [];
+    this.doneCursor = 0;
+    this.memory =true;
 
 }
 Document.prototype={
@@ -31,25 +35,27 @@ Document.prototype={
     onRemoveLine:function(){},
     onAddLine:function(){},
     insert:function(value, cursor){
-
+        var v = value;
         // {row:3,clum:5}
 
-        var end = cursor?cursor:{
+        var start = cursor?cursor:{
             row:0,
             column:0
         };
 
-        if(!value)return end;
+        if(!value)return start;
         var lines = this._split(value);
         
 
         if(lines.length ==1){
-            end =this.insertInLine(lines[0],end.row,end.column);
+           var end = this.insertInLine(lines[0],start.row,start.column);
+            
+        
         }else{
-            var value = this._value[end.row]||"";
-            var tempValue = value.substring(end.column);
-            this._value[end.row] = value.substring(0,end.column)+lines[0];
-            this.updateLine(this._value[end.row] , end.row, CMD_UPDATE);
+            var value = this._value[start.row]||"";
+            var tempValue = value.substring(start.column);
+            this._value[start.row] = value.substring(0,start.column)+lines[0];
+            this.updateLine(this._value[start.row] , start.row, CMD_UPDATE);
             lines[lines.length-1] =lines[lines.length-1]+ tempValue
             
             var addLines =[];
@@ -57,25 +63,20 @@ Document.prototype={
                 addLines[i-1]=lines[i];
             }
             
-            end =  this.insertNewLines(addLines, end.row+1);
+            this.insertNewLines(addLines, start.row+1);
+            var end = {
+                row:start.row+addLines.length,
+                column:addLines[addLines.length-1].length
+            }
 
-            
-
-
-
-        /*var firstLine =lines.splice(0,1)[0];
-                        var lastLine = lines.length == 0 ? null : lines.splice(lines.length - 1, 1)[0];
-
-                        end =this.insertInLine(firstLine,end.row,end.column);
-                        if (lastLine !== null) {
-
-                            end =this.insertNewLines(lines, end.row+1);
-                            end = this.insertInLine(lastLine || "",end.row,end.column);
-                        }*/
         }
+     
+        this.done("insert",v,{
+            start:cursor,
+            end:end
+        })
 
        
-
         return end;
 
 
@@ -133,10 +134,11 @@ Document.prototype={
 
     },
     remove:function(range){
+      
         var start = range.start,
         end = range.end;
-
-
+        var value =this.getRangeValue(range);
+        console.log("remove:"+value)
         var  num = end.row - start.row;
         if(num == 0) this.removeInLine(start.row, start.column, end.column);
         if(num > 0){
@@ -155,9 +157,61 @@ Document.prototype={
 
             this.removeNewLines(newLines)
         }
+        
+        this.done("remove",value,range)
 
         return start;
 
+    },
+    undo:function(){
+        var result;
+        if(this.doneCursor> actionMemery.length-1)this.doneCursor> actionMemery.length-1;
+        var last = actionMemery[this.doneCursor];
+        console.log(last)
+        if(!last) return;
+        this.memory =false;
+        if(last.cmd == "insert"){
+          
+            result=this.remove(last.range);
+         
+        }
+        if(last.cmd == "remove"){
+            
+            result=this.insert(last.value, last.range.start);
+        }
+        this.memory =true;
+        this.doneCursor--;
+        return result;
+    },
+    done:function(action, value, range){
+       
+        if(!this.memory)return;
+        console.log("memory:"+action+" value " +value+" range "+range)
+        actionMemery.push({
+            cmd:action,
+            value:value,
+            range:range
+        })
+        this.doneCursor = actionMemery.length-1;
+    },
+    redo:function(){
+        var result;
+        this.doneCursor++;
+        if(this.doneCursor<0)this.doneCursor ==0; 
+        var last = actionMemery[this.doneCursor];
+        console.log("redo")
+        console.log(last);
+        if(!last) return;
+        this.memory =false;
+        if(last.cmd == "insert"){
+            result = this.insert(last.value,last.range.start);
+        }
+        if(last.cmd == "remove"){
+            result = this.remove(last.range);
+        }
+        this.memory =true;
+       
+        return result;
     },
     removePrevChar:function(range){
         var row = range.start.row,
@@ -174,6 +228,8 @@ Document.prototype={
         }else{
             range.start.column = column-1;
         }
+        console.log("remove");
+        console.log(range);
         return  this.remove(range)
 
 
@@ -208,6 +264,32 @@ Document.prototype={
 
         return  this.insert(value,range);
     },
+    getRangeValue:function(range){
+        var
+        result = [],
+        start = range.start,
+        end = range.end,
+        num = end.row - start.row;
+        var value = this._value;
+        if(num == 0){
+            result.push(value[start.row].substring(start.column,end.column))
+            
+        }
+        else if(num>0){
+
+            result.push(value[start.row].substring(start.column))
+           
+            for(var i = 0;i<num-1;i++){
+                result.push(value[start.row+i+1]);
+            }
+            result.push(value[end.row].substring(0, end.column));
+         
+         
+        }
+        return result.join("\n");
+     
+      
+    },
 
     _split:function(value){
 
@@ -226,6 +308,7 @@ function Render(doc){
     this.container = $("#editor");
     this.text = $(".text");
     this.lineNum = $(".line-num");
+    this.source =$(".source");
     this.hightlight = $(".hightlight");
     this.cursor = $(".cursor");
     this.cursorPosition={
@@ -273,7 +356,7 @@ Render.prototype={
             var pageX = ev.pageX,
             pageY = ev.pageY;
 
-            var offset = el.offset();
+            var offset = self.source.offset();
             self.setCursorPosition(pageX - offset.left, pageY - offset.top-10);
             var start = this.rangeStart = self.getCursorPosition();
             self.clearRange()
@@ -293,7 +376,7 @@ Render.prototype={
             if(self.status){
                 var pageX =ev.pageX;
                 var pageY =ev.pageY;
-                var offset = el.offset();
+                var offset = self.source.offset();
                 self.setCursorPosition(pageX - offset.left, pageY - offset.top-10);
                 var start =  this.rangeStart ;
 
@@ -312,8 +395,8 @@ Render.prototype={
         })
 
         self.input.bind("cut", function(ev){
-            console.log("cut")
-        })
+            
+            })
 
 
         self.input.bind("keydown",function(ev){
@@ -366,6 +449,23 @@ Render.prototype={
                 }
 
             }
+            
+            if(ev.ctrlKey&&keyCode ==90){
+                var position =  self.doc.undo();
+                if(position){
+                    self.setCursorRowColumn(position.row,position.column);
+                    self.setRange(self.getCursorPosition(),self.getCursorPosition())
+                }
+                ev.preventDefault();
+            }
+            if(ev.ctrlKey&&keyCode ==89){
+                var position =  self.doc.redo();
+                if(position){
+                    self.setCursorRowColumn(position.row,position.column);
+                    self.setRange(self.getCursorPosition(),self.getCursorPosition())
+                }
+                ev.preventDefault();
+            }
             //delete
             if(keyCode ==8){
                 if(self.hasRange(self.getRange())){
@@ -380,6 +480,7 @@ Render.prototype={
 
                 ev.preventDefault();
             }
+           
             //left
             else if(keyCode ==37){
                 self.cursorLeftColumn();
@@ -406,7 +507,7 @@ Render.prototype={
             }
             //enter
             else if(keyCode ==13){
-
+        /*
                 self.doc.breakLine({
                     column:self.cursorPosition.column,
                     row:self.cursorPosition.row
@@ -415,8 +516,8 @@ Render.prototype={
                 self.setCursorX(0);
                 self.setRange(self.getCursorPosition(),self.getCursorPosition())
                 ev.preventDefault()
-
-            }
+*/
+        }
        
 
 
@@ -517,7 +618,7 @@ Render.prototype={
 
    
                 lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
-                 var num= $(".num",this.lineNum);
+                var num= $(".num",this.lineNum);
                 var newNum = $('<div class="num" style="height:'+this.charSize.height+'px">'+(num.length+1)+'</div>');
             
                 this.lineNum.append(newNum);
@@ -588,7 +689,7 @@ Render.prototype={
 
       
         if(cmd == CMD_UPDATE || cmd == CMD_ADD){
-            console.log("height lineght row:"+row)
+           
             lineNode= $(".line:eq("+row+")",this.hightlight)  ;
 
             if(lineNode.length ==0){
@@ -768,28 +869,8 @@ Render.prototype={
         this.renderRange(this.range);
     },
     getRangeValue:function(){
-        var range = this.range,
-        result = [],
-        start = range.start,
-        end = range.end,
-        num = end.row - start.row;
-        var value = this.doc._value;
-        if(num == 0){
-            result.push(value[start.row].substring(start.column,end.column))
-            console.log(result)
-        }
-        else if(num>0){
-
-            result.push(value[start.row].substring(start.column))
-           
-            for(var i = 0;i<num-1;i++){
-                result.push(value[start.row+i]);
-            }
-            result.push(value[end.row].substring(0, end.column));
-         
-         
-        }
-        return result.join("\n");
+        var range = this.range;
+        return this.doc.getRangeValue(range);
      
       
     },

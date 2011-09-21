@@ -647,6 +647,22 @@ Render.prototype={
         window.setTimeout(function(){
             try{
                 self.hightLighter(value, row, cmd);
+                var option ={
+                    browser:false,
+                    widget:false,
+                    windows:false
+                }
+                var lint =JSLINT(self.doc.getValue(),option);
+                 $("#report").html("");
+                for(var i =0;i<JSLINT.errors.length;i++){
+                    var e = JSLINT.errors[i];
+                   
+                    $("#report").html($("#report").html()+"<br>" +e.id+":"+JSLINT.errors[i].reason+" at :   line:"+e.line+" character:"+e.character)
+                }
+                
+              //  $("#report").html(JSON.stringify(JSLINT.errors[0]))
+                
+                
             }catch(e){
                 showError(e)
             }

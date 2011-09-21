@@ -12,6 +12,7 @@
         <script type="text/javascript" src ="assets/parse.js"></script>
         <script type="text/javascript" src ="assets/editor.js"></script>
         <script type="text/javascript" src ="assets/lighter.js"></script>
+         <script type="text/javascript" src ="assets/jslint.js"></script>
 
 
 
@@ -37,7 +38,7 @@
 
             </div><textarea class="cmd">run</textarea>
 
-
+            <div id="report"></div>
 
 
             <div style="display:none">   <div><a href="#" onclick="showValue()">value</a>  <a href="#" onclick="showParse()">parse</a></div>
@@ -51,20 +52,25 @@
         </div>
         <pre style="display:none" id="code">
 
+(function () {
+    "use strict";
 
-function showValue(){
-    $(".log").html(editor.doc.getValue());
-}
+    var $, editor, tokens, showError;
 
-var showError = function(msg){
-    $(".log").html($(".log").html( )+msg+"<br>")
-}
+    function showValue() {
+        $(".log").html(editor.doc.getValue());
+    }
 
-function showParse(){
-    var t = tokens(editor.doc.getValue())
-    $(".log").html(JSON.stringify(t));
-}
-alert(234);
+    showError = function (msg) {
+        $(".log").html($(".log").html() + msg + "d");
+    };
+
+    function showParse() {
+        var t = tokens(editor.doc.getValue());
+        $(".log").html(JSON.stringify(t));
+    }
+    
+}());
         </pre>
         <script type="text/javascript">
           

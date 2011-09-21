@@ -20,7 +20,12 @@
 // will match any of these:
 //      <=  >>  >>>  <>  >=  +: -: &: &&: &&
 
-var keywords=["function","var","return","break","for","in","if","else","type","catch","new"]
+
+var keywords=["function","var","return","break","for",
+    "in","if","else","type","catch",
+    "new","default","delete","do","while",
+    "instanceof","null","super","switch","this","throw","true","while","with"
+]
 var isKeyword=function(name){
     var result = false;
     for(var i = 0;i<keywords.length;i++){

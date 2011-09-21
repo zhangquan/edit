@@ -56,6 +56,7 @@ Document.prototype={
             var tempValue = value.substring(start.column);
             this._value[start.row] = value.substring(0,start.column)+lines[0];
             this.updateLine(this._value[start.row] , start.row, CMD_UPDATE);
+            var column = lines[lines.length-1].length;
             lines[lines.length-1] =lines[lines.length-1]+ tempValue
             
             var addLines =[];
@@ -66,7 +67,7 @@ Document.prototype={
             this.insertNewLines(addLines, start.row+1);
             var end = {
                 row:start.row+addLines.length,
-                column:addLines[addLines.length-1].length
+                column:column
             }
 
         }
@@ -785,7 +786,7 @@ Render.prototype={
         return size;
     },
     setCursorY:function (y){
-        y = y+ this.container.scrollTop();
+        y = y+ this.source.scrollTop();
         
         var p  = this.cursorPosition;
         p.row = Math.round((y)/this.charSize.height);
@@ -811,7 +812,7 @@ Render.prototype={
     },
     setCursorX:function (x){
     
-        x = x+this.container.scrollLeft();
+        x = x+this.source.scrollLeft();
         var p  = this.cursorPosition;
         
         p.column = Math.round(x/this.charSize.width);

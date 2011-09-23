@@ -12,7 +12,7 @@
         <script type="text/javascript" src ="assets/parse.js"></script>
         <script type="text/javascript" src ="assets/editor.js"></script>
         <script type="text/javascript" src ="assets/lighter.js"></script>
-         <script type="text/javascript" src ="assets/jslint.js"></script>
+        <script type="text/javascript" src ="assets/jslint.js"></script>
 
 
 
@@ -21,7 +21,8 @@
 
         <div class="main">
 
-
+            <input type="file" class="open-file" name ="name"/>
+            <a href="#" target="_blank"  class="save-file">保存为本地文件</a>
 
             <div id="editor" class="editor">
                 <div class="line-num"></div>
@@ -74,26 +75,60 @@
         </pre>
         <script type="text/javascript">
           
-
+            var fileType ="application/x-javascript";
             
 
             var editor =  new Editor($("#code").text())
             
-            
-            
- 
-            function showValue(){
-                $(".log").html(editor.doc.getValue());
-            }
-            var showError = function(msg){
-                $(".log").html($(".log").html( )+msg+"<br>")
-            }
-            
-            function showParse(){
+            var openfile = $(".open-file");
+            openfile.bind("change",function(ev){
                 
-                var t = tokens(editor.doc.getValue())
-                $(".log").html(JSON.stringify(t));
-            }
+              
+                var files = ev.target.files;
+               
+                for (var i = 0; i < files.length; i++) {  
+                    var file = files[i];  
+                    var imageType = /application.*/;  
+      
+                    /*if (!file.type.match(imageType)) {  
+                        continue;  
+                    } 
+                     */
+                    
+                    fileType = file.type;
+                 
+      
+                    console.log(file.type)
+                    var reader = new FileReader();  
+                    reader.onload = function(e) { 
+                        
+                        editor.doc.setValue(e.target.result);
+                    };  
+                  
+                    reader.readAsText(file);  
+                  
+                  
+                }
+            })
+            
+            $(".save-file").bind("mousedown",function(e){
+                var BlobBuilder = MozBlobBuilder || WebKitBlobBuilder;
+               
+                var bb = BlobBuilder();
+                bb.append(editor.doc.getValue())
+                var newReader = new FileReader();
+                newReader.onload = function(e){
+                    console.log(e.target.result);
+                  
+                   $(".save-file").attr("href", e.target.result);
+                    //window.open (e.target.result, 'newwindow', 'height=100, width=400, top=0, left=0, toolbar=no, menubar=no, scrollbars=no, resizable=no,location=n o, status=no') 
+                }
+                newReader.readAsDataURL(bb.getBlob(fileType));
+                
+            
+            })
+ 
+            
             
             
             var cmd = $(".cmd");
@@ -112,6 +147,8 @@
     
                 }
             })
+            
+            // In the DOM or worker context:
 
 
 

@@ -2,11 +2,17 @@
 var CMD_ADD = 1,
 CMD_REMOVE =2,
 CMD_UPDATE =3;
+CMD_CLEAR = 4;
 
 var actionMemery =[];
 
 
+var timer;
+
+
 var worker;
+
+var jslint_worker;
 function escapeHTML(s){
 
     return (s+"").replace(/&/g, "&amp;").
@@ -21,7 +27,7 @@ function Document(value,render){
 }
 Document.prototype={
     setValue:function(value){
-
+        this.clear();
         this.insert(value,{
             row:0,
             column:0
@@ -48,7 +54,7 @@ Document.prototype={
         
 
         if(lines.length ==1){
-           var end = this.insertInLine(lines[0],start.row,start.column);
+            var end = this.insertInLine(lines[0],start.row,start.column);
             
         
         }else{
@@ -134,12 +140,17 @@ Document.prototype={
     mergeLine:function(row){
 
     },
+    clear:function(){
+        this._value =[]
+        this.updateLine(null,null,CMD_CLEAR)
+        
+    },
     remove:function(range){
       
         var start = range.start,
         end = range.end;
         var value =this.getRangeValue(range);
-        console.log("remove:"+value)
+        
         var  num = end.row - start.row;
         if(num == 0) this.removeInLine(start.row, start.column, end.column);
         if(num > 0){
@@ -168,7 +179,7 @@ Document.prototype={
         var result;
         if(this.doneCursor> actionMemery.length-1)this.doneCursor> actionMemery.length-1;
         var last = actionMemery[this.doneCursor];
-        console.log(last)
+        
         if(!last) return;
         this.memory =false;
         if(last.cmd == "insert"){
@@ -187,7 +198,7 @@ Document.prototype={
     done:function(action, value, range){
        
         if(!this.memory)return;
-        console.log("memory:"+action+" value " +value+" range "+range)
+     
         actionMemery.push({
             cmd:action,
             value:value,
@@ -200,8 +211,8 @@ Document.prototype={
         this.doneCursor++;
         if(this.doneCursor<0)this.doneCursor ==0; 
         var last = actionMemery[this.doneCursor];
-        console.log("redo")
-        console.log(last);
+       
+      
         if(!last) return;
         this.memory =false;
         if(last.cmd == "insert"){
@@ -229,8 +240,8 @@ Document.prototype={
         }else{
             range.start.column = column-1;
         }
-        console.log("remove");
-        console.log(range);
+        
+      
         return  this.remove(range)
 
 
@@ -411,7 +422,7 @@ Render.prototype={
             // tab
             if(keyCode == 9){
                 var cursor = self.doc.insert("    ", self.getRange().end)
-                console.log(cursor)
+                
                 
                 self.setCursorRowColumn(cursor.row,cursor.column);
                 self.setRange(self.getCursorPosition(),self.getCursorPosition())
@@ -422,7 +433,7 @@ Render.prototype={
                 if(self.hasRange(self.getRange())){
                     var value =self.getRangeValue();
                     
-                    console.log(value)
+                    
                     if(value)  self.input.val(value)
 
                     self.input.select();
@@ -441,7 +452,7 @@ Render.prototype={
                 if(self.hasRange(self.getRange())){
                     var value =self.getRangeValue();
                     
-                    console.log(value)
+                    
                     if(value)  self.input.val(value)
 
                     self.input.select();
@@ -577,10 +588,18 @@ Render.prototype={
 
 
     renderLine:function(value, row, cmd){
+        
+        
+        
+        var temp =value;
+        if(cmd == CMD_CLEAR){
+            this.text.html("");
+            this.lineNum.html("");
+        }
         if(!value)value =""
         var self = this;
         var   escapeValue=escapeHTML(value)
-        
+         
 
         
         var lineNode;
@@ -643,31 +662,57 @@ Render.prototype={
             lineNode.remove();
             
         }
+          
+        
+        
+        if(timer){
+            window.clearTimeout(timer);
+            timer = null;
+        }
 
-        window.setTimeout(function(){
-            try{
-                self.hightLighter(value, row, cmd);
-                var option ={
-                    browser:false,
-                    widget:false,
-                    windows:false
-                }
-                var lint =JSLINT(self.doc.getValue(),option);
-                 $("#report").html("");
-                for(var i =0;i<JSLINT.errors.length;i++){
-                    var e = JSLINT.errors[i];
+        timer = window.setTimeout((function(){
+          console.log(value);
+            return function(){
+                try{
+                
+                    if(!worker)worker =new Worker("assets/worker_tokens.js");
+                    worker.onmessage=function(e){
+                        console.log(e.data)
+                        self.hlworker(e.data, row, cmd);
+                    }
+                
+                    console.log(value+1);
+                 
+             
+                    console.log("work value "+value)
+                    worker.postMessage(value);
+             
+                
+                
+                    if(!jslint_worker)jslint_worker =new Worker("assets/worker_jslint.js");
+                    jslint_worker.onmessage=function(ev){
+                        console.log(ev.data)
+                        $("#report").html("");
+                        for(var i =0;i<ev.data.length;i++){
+                            var e = ev.data[i];
                    
-                    $("#report").html($("#report").html()+"<br>" +e.id+":"+JSLINT.errors[i].reason+" at :   line:"+e.line+" character:"+e.character)
+                            $("#report").html($("#report").html()+"<br>" +e.id+":"+e.reason+" at :   line:"+e.line+" character:"+e.character)
+                        }
+                    }
+      
+                    jslint_worker.postMessage(self.doc.getValue());
+                
+                
+               
+                
+               
+                }catch(e){
+                    console.log(e)
                 }
-                
-              //  $("#report").html(JSON.stringify(JSLINT.errors[0]))
-                
-                
-            }catch(e){
-                showError(e)
-            }
             
-        }, 0)
+            }
+         
+        }()),10)
        
        
     /*
@@ -687,12 +732,52 @@ Render.prototype={
 
 
     },
+    
     hightLighter:function(value, row, cmd){
         
         this.hightlight = this.text 
         var temp = value;
         value="";
         var token= tokens(temp);
+        token=token?token:[];
+        for(var i=0;i<token.length;i++){
+            if(token[i].type=="string")token[i].value ='"'+token[i].value+'"';
+            if(token[i].type=="comment")token[i].value ='//'+token[i].value;
+
+            value+='<span class='+token[i].type+'>'+escapeHTML(token[i].value)+'</span>'
+        }
+
+
+        var lineNode;
+
+      
+        if(cmd == CMD_UPDATE || cmd == CMD_ADD){
+           
+            lineNode= $(".line:eq("+row+")",this.hightlight)  ;
+
+            if(lineNode.length ==0){
+
+
+                lineNode =  $('<div class="line" style="height:'+this.charSize.height+'px"></div>');
+
+                this.hightlight.append(lineNode);
+
+            }
+            lineNode.html(value);
+            return;
+        }
+       
+
+
+
+
+    },
+    hlworker:function(token, row, cmd){
+        
+        this.hightlight = this.text 
+
+        var value="";
+
         token=token?token:[];
         for(var i=0;i<token.length;i++){
             if(token[i].type=="string")token[i].value ='"'+token[i].value+'"';

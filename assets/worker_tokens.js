@@ -301,9 +301,10 @@ var tokens = function (source, prefix, suffix) {
     }
     return result;
 };
-
+var ts;
 self.onmessage =function(e){
-  var ts =tokens(e.data);
+   
+   ts =tokens(e.data)||[];
     
     self.postMessage(ts)
 }

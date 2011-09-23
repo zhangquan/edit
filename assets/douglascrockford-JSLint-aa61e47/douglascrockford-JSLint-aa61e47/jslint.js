@@ -1998,6 +1998,7 @@ klass:              do {
                         }
                     }
                     snippet = match(rx[xmode] || tx);
+                    console.log(snippet)
                     if (!snippet) {
                         snippet = '';
                         c = '';

@@ -9,12 +9,14 @@ body{
 .editor{
     position: relative;
     border: solid 1px black;
-    cursor:text;
+
     font-family: Monaco,"Menlo","Courier New",monospace;
     font-size: 14px;
-    overflow: auto;
+    overflow-x:hidden;
+    overflow-y:auto; 
 
     background-color: #eee;
+
 
 
 }
@@ -22,11 +24,17 @@ body{
     float: left;
     width: 35px;
     text-align: right;
+
+
+}
+.editor .line-num .error{
+    background-color:coral;
 }
 .editor .source{
     margin-left: 40px;
     position: relative;
     background-color: #fff;
+    cursor:text;
 
 }
 
@@ -120,4 +128,62 @@ body{
     color:red;
     overflow: auto;
     width: 100%;
+}
+
+.error-popup{
+    position: absolute;
+    top:0;
+    left:50px;
+    display: none;
+    width: 300px;
+    height: 100px;
+    border: solid 1px #333;
+    background-color:#fff;
+    white-space:nowrap;
+    overflow: auto;
+    line-height: 20px;
+
+}
+.menu{
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    margin-bottom: 10px;
+}
+.menu ul{
+    list-style-type: none;
+}
+.menu li{
+    list-style-type: none;
+    float: left;
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: solid 1px #333;
+    height: 20px;
+    line-height: 20px;
+    text-align:center;
+  
+    width: 100px;
+    margin-right: 10px;
+    overflow: hidden;
+    
+}
+.menu a{
+      text-decoration: none;
+}
+.menu a:visited{
+    color: #333;
+}
+.menu .open{
+    position: relative;
+}
+.menu input{
+    position: absolute;
+    top:0;
+    left:0;
+    height: 20px;
+    width:100px;
+    opacity:0;
+    cursor:pointer;
 }

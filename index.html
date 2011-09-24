@@ -21,8 +21,25 @@
 
         <div class="main">
 
-            <input type="file" class="open-file" name ="name"/>
-            <a href="#" target="_blank"  class="save-file">保存为本地文件</a>
+            <div class="menu">
+                <ul>
+                    <li class="open">
+                        <a href="#">打开</a>
+                        <input type="file" class="open-file" name ="name"/>
+                    </li>
+                    <li class="saveas">
+                        <a href="#" target="_blank"  class="save-file">保存为</a>
+                    </li>
+
+                    <li class="run">
+                        <a href="#"  class="run-file">运行</a>
+                    </li>
+
+                </ul>
+
+
+            </div>
+
 
             <div id="editor" class="editor">
                 <div class="line-num"></div>
@@ -37,9 +54,9 @@
                     <div class="text"></div>
                 </div>
 
-            </div><textarea class="cmd">run</textarea>
+            </div>
 
-            <div id="report"></div>
+
 
 
             <div style="display:none">   <div><a href="#" onclick="showValue()">value</a>  <a href="#" onclick="showParse()">parse</a></div>
@@ -112,15 +129,15 @@
             })
             
             $(".save-file").bind("mousedown",function(e){
-                var BlobBuilder = MozBlobBuilder || WebKitBlobBuilder;
+                var BlobBuilder = window.WebKitBlobBuilder ||window.MozBlobBuilder ;
                
-                var bb = BlobBuilder();
+                var bb =new BlobBuilder();
                 bb.append(editor.doc.getValue())
                 var newReader = new FileReader();
                 newReader.onload = function(e){
                     console.log(e.target.result);
                   
-                   $(".save-file").attr("href", e.target.result);
+                    $(".save-file").attr("href", e.target.result);
                     //window.open (e.target.result, 'newwindow', 'height=100, width=400, top=0, left=0, toolbar=no, menubar=no, scrollbars=no, resizable=no,location=n o, status=no') 
                 }
                 newReader.readAsDataURL(bb.getBlob(fileType));
@@ -131,21 +148,13 @@
             
             
             
-            var cmd = $(".cmd");
-            cmd.bind("keydown",function(ev){
-                var keyCode= ev.keyCode;
-                console.log(keyCode);
-                if(keyCode =="13"){
-                    var valueArray = editor.doc._split($.trim(cmd.val()));
-                    var value = valueArray[valueArray.length-1];
-                    console.log(valueArray);
-                    if(value == "run"){ 
-                        var t = (editor.doc.getValue());
-                        eval(t);
-                    } 
-                    
-    
-                }
+          
+            
+            $(".run-file").click(function(ev){
+               
+                ev.stopPropagation();
+                var t = editor.doc.getValue();
+                eval(t);
             })
             
             // In the DOM or worker context:

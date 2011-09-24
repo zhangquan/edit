@@ -4,6 +4,7 @@ CMD_REMOVE =2,
 CMD_UPDATE =3;
 CMD_CLEAR = 4;
 
+
 var actionMemery =[];
 
 
@@ -13,6 +14,9 @@ var timer;
 var worker;
 
 var jslint_worker;
+
+
+var errorMsg=[];
 function escapeHTML(s){
 
     return (s+"").replace(/&/g, "&amp;").
@@ -320,6 +324,13 @@ function Render(doc){
     this.container = $("#editor");
     this.text = $(".text");
     this.lineNum = $(".line-num");
+    
+    this.lineNum.delegate(".num","click",function(e){
+        e.stopPropagation();
+        var target = e.target;
+        self.showError(target);
+    })
+    
     this.source =$(".source");
     this.hightlight = $(".hightlight");
     this.cursor = $(".cursor");
@@ -351,18 +362,18 @@ Render.prototype={
             ev.preventDefault();
         })
 
-        el.focusin(function(){
+        this.source.focusin(function(){
             self.showCursor();
             self.input.focus();
 
 
         })
-        el.focusout(function(){
+        this.source.focusout(function(){
             self.hideCursor();
             self.input.blur();
         })
 
-        el.mousedown(function(ev){
+        this.source.mousedown(function(ev){
             self.status = true;
 
             var pageX = ev.pageX,
@@ -379,12 +390,12 @@ Render.prototype={
             ev.preventDefault();
 
         })
-        el.mouseup(function(ev){
+        this.source.mouseup(function(ev){
             self.status = false;
 
         })
 
-        el.mousemove(function(ev){
+        this.source.mousemove(function(ev){
             if(self.status){
                 var pageX =ev.pageX;
                 var pageY =ev.pageY;
@@ -574,7 +585,7 @@ Render.prototype={
         var self=this;
         this._cursorTimer =window.setInterval(function(){
             self.cursor.toggleClass("show")
-        }, 250)
+        }, 500)
     },
     hideCursor:function(){
         if( this._cursorTimer){
@@ -590,18 +601,29 @@ Render.prototype={
     renderLine:function(value, row, cmd){
         
         
-        
+      
         var temp =value;
         if(cmd == CMD_CLEAR){
             this.text.html("");
             this.lineNum.html("");
         }
         if(!value)value =""
-        var self = this;
-        var   escapeValue=escapeHTML(value)
-         
-
         
+        var temp = value;
+        value="";
+        var token= tokens(temp);
+        token=token?token:[];
+        for(var i=0;i<token.length;i++){
+            if(token[i].type=="string")token[i].value ='"'+token[i].value+'"';
+            if(token[i].type=="comment")token[i].value ='//'+token[i].value;
+
+            value+='<span class='+token[i].type+'>'+escapeHTML(token[i].value)+'</span>'
+        }
+        var t =123;
+       
+        var self = this;
+        var   escapeValue=value||escapeHTML(value)
+         
         var lineNode;
       
         if(cmd == CMD_ADD){
@@ -665,68 +687,52 @@ Render.prototype={
           
         
         
+        
+     
+        
+        
         if(timer){
             window.clearTimeout(timer);
             timer = null;
         }
 
-        timer = window.setTimeout((function(){
-          console.log(value);
-            return function(){
-                try{
+        timer = window.setTimeout(function(){
+            try{
                 
-                    if(!worker)worker =new Worker("assets/worker_tokens.js");
-                    worker.onmessage=function(e){
-                        console.log(e.data)
-                        self.hlworker(e.data, row, cmd);
-                    }
-                
-                    console.log(value+1);
                  
-             
-                    console.log("work value "+value)
-                    worker.postMessage(value);
-             
-                
-                
-                    if(!jslint_worker)jslint_worker =new Worker("assets/worker_jslint.js");
-                    jslint_worker.onmessage=function(ev){
-                        console.log(ev.data)
-                        $("#report").html("");
-                        for(var i =0;i<ev.data.length;i++){
-                            var e = ev.data[i];
-                   
-                            $("#report").html($("#report").html()+"<br>" +e.id+":"+e.reason+" at :   line:"+e.line+" character:"+e.character)
-                        }
+                if(!jslint_worker)jslint_worker =new Worker("assets/worker_jslint.js");
+                jslint_worker.onmessage=function(ev){
+                    $("#report").html("");
+                    $(".num").removeClass("error");
+                    
+                    errorMsg = ev.data;
+                    
+                    for(var i =0;i<errorMsg.length;i++){
+                        $(".num:eq("+(errorMsg[i].line-1)+")").addClass("error")
+                        
+                        
+                        
+           
                     }
-      
-                    jslint_worker.postMessage(self.doc.getValue());
-                
-                
-               
-                
-               
-                }catch(e){
-                    console.log(e)
+                    
                 }
-            
-            }
-         
-        }()),10)
-       
-       
-    /*
-   
-        if(!worker)worker =new Worker("assets/worker_tokens.js");
-        worker.onmessage=function(e){
-           console.log(e.data)
-           self.worker(e.data, row, cmd);
-        }
       
-        worker.postMessage(value);
-*/
+                jslint_worker.postMessage(self.doc.getValue());
+                
+                
+               
+                
+               
+            }catch(e){
+                console.log(e)
+            }
+            
+            
          
-
+        },10)
+       
+       
+   
 
     
 
@@ -1048,8 +1054,45 @@ Render.prototype={
             result = false;
         }
         return result;
-    }
+    },
+    showError:function(target){
+        var jtarget = $(target);
+        var self = this;
+        if(!jtarget.hasClass("error"))return;
+        
+      
+        if(!this.errorPopup){
+            this.errorPopup =$('<div class="error-popup"></div>');
+            this.errorPopup.appendTo(this.container);
+            $("body").click(function(ev){
 
+                var inner = $.contains(self.errorPopup.get(0),ev.target) || self.errorPopup.get(0)==ev.target;
+                if(!inner){
+                    self.errorPopup.css("display","none");
+                }
+                
+            })
+        }
+       
+        
+      
+        var line = parseInt(jtarget.html());
+    
+        this.errorPopup.css("top", (line)*this.charSize.height+"px");
+        this.errorPopup.css("display","block");
+        this.errorPopup.html("");
+        for(var i =0;i<errorMsg.length;i++){
+            if(errorMsg[i].line == line){
+                var msg = errorMsg[i].reason+" at :   line:"+errorMsg[i].line+" character:"+errorMsg[i].character+"<br/>" 
+                this.errorPopup.html( this.errorPopup.html()+msg)
+            }
+                        
+                        
+           
+        }
+        
+
+    }
 
 }
 

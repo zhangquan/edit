@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset='utf-8'>
+
+        <title>zhangquan</title>
+        <script src="../assets/jquery-1.6.2.min.js"></script>
+        <style type="text/css">
+            #editor{
+                height:400px;
+                border: solid 1px #333;
+
+            }
+
+            .ngo-editor{
+
+            }
+            .ngo-editor ul,.ngo-editor li{
+                list-style-type: none;
+            }
+            .ngo-editor li{
+                border-bottom: solid 1px red;
+            }
+        </style>
+
+
+
+    <body>
+        <div id="editor" contenteditable ="true">00000000000<span>444<span>ee</span>444</span>555555555<samp>66666666</samp>YYYYYYYYYYYY</div>
+
+
+        <script type="text/javascript">
+            var editor = $("#editor").get(0);
+            
+            console.log(editor);
+            
+            function getTextNodes(el){
+                var textNodes = [];
+                var children = el.childNodes;
+                for(var i=0;i<children.length;i++){
+                    if(children[i].nodeType == 3){
+                        textNodes.push(children[i])
+                    }else{
+                        textNodes =textNodes.concat(getTextNodes(children[i])) ;
+                    }
+                }
+                return textNodes;
+            }
+            function realPosition(el, position){
+                var nodes= getTextNodes(el);
+                var result ={};
+                var value,l =0;
+                for(var i =0;i<nodes.length;i++){
+                    value = nodes[i].textContent;
+                   var prev = l;
+                   l+=value.length;
+                    if(l>=position){
+                        result.node = nodes[i];
+                        result.offset =  position - prev;
+                        break;
+                    }
+                }
+                return result;
+               
+                
+        
+            }
+            
+            
+            function setRange(el, offset){
+                var position = realPosition(el, offset);
+                
+                console.log(position)
+                var selection = document.getSelection();
+                var range = document.createRange();
+                range.setStart(position.node, position.offset);
+                
+                selection.addRange(range);
+                
+            }
+            
+       
+            setRange(editor, 19);
+           
+           
+        </script>
+
+
+    </body>
+</html>

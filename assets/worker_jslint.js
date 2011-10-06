@@ -7024,7 +7024,8 @@ self.onmessage =function(e){
     var option ={
         browser:false,
         widget:false,
-        windows:false
+        windows:false,
+        sloppy:false
     }
     var lint =JSLINT(e.data,option);
                 

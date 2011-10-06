@@ -15,6 +15,8 @@ var worker;
 
 var jslint_worker;
 
+var container = $("#editor");
+
 
 var errorMsg=[];
 function escapeHTML(s){
@@ -316,7 +318,155 @@ Document.prototype={
 
 
 
+function Range(start,end){
+    this.start=start;
+    this.end = end;
+    this.isCollapse = true;
+}
 
+Range.prototype = {
+    getRange:function(selection){
+        var line, column;
+        var range = selection.getRangeAt(0);
+       
+       
+        this.isCollapse = range.collapsed;
+        
+        var start = range.startContainer;
+        var end = range.endContainer;
+        var endOffset = range.endOffset;
+        var startOffset = range.startOffset;
+        
+        if(start.nodeType == 3)start =$(start).parent();
+        
+        if(end.nodeType == 3)end =$(end).parent();
+        this.setStart(start, startOffset);
+        this.setEnd(end, endOffset);
+        
+      
+       
+    },
+    position:function(){
+        var selection = document.getSelection();
+        selection.removeAllRanges();
+        var range = document.createRange();
+        
+        var text = $(".text");
+        
+        
+        var startLine = $(".line", text).eq(this.start.row).get(0);
+        var endLine = $(".line", text).eq(this.end.row).get(0);
+        
+        var startPosition = this.realPosition(startLine, this.start.column);
+        var endPosition = this.realPosition(endLine, this.end.column)
+       
+        range.setStart(startPosition.node, startPosition.offset);
+        range.setEnd(endPosition.node, endPosition.offset);
+        selection.addRange(range);
+       
+        console.log(selection)
+        
+    },
+    getTextNodes:function(el){
+        var textNodes = [];
+        var children = el.childNodes;
+        for(var i=0;i<children.length;i++){
+            if(children[i].nodeType == 3){
+                textNodes.push(children[i])
+            }else{
+                textNodes =textNodes.concat(this.getTextNodes(children[i])) ;
+            }
+        }
+        return textNodes;
+    },
+    realPosition: function(el, position){
+        var nodes= this.getTextNodes(el);
+        var result ={};
+        var value,l =0;
+        for(var i =0;i<nodes.length;i++){
+            value = nodes[i].textContent;
+            var prev = l;
+            l+=value.length;
+            if(l>=position){
+                result.node = nodes[i];
+                result.offset =  position - prev;
+                break;
+            }
+        }
+        return result;
+               
+                
+        
+    },
+    setStart:function(start, offset){
+        var line, column;
+        var lineNode = $(start).closest(".line");
+        var text = $(".text");
+        var lines = $(".line", text);
+        lines.each(function(index, el){
+          
+            if(lineNode.is($(el))){
+                line = index;
+            }
+        })
+        
+        
+        column = this.offset(lineNode, start, offset);
+        
+        this.start = {
+            row:line,
+            column:column
+        }
+        
+       
+        
+        
+    },
+    setEnd:function(end, offset){
+        var line, column;
+        var lineNode = $(end).closest(".line");
+        var text = $(".text");
+        var lines = $(".line", text);
+        lines.each(function(index, el){
+            if(lineNode.is($(el))){
+                line = index;
+            }
+        })
+        
+        column = this.offset(lineNode, end, offset);
+        
+        this.end = {
+            row:line,
+            column:column
+        }
+        
+    },
+    offset:function (line, startNode, off){
+        var self = this;
+        var o =0;
+       
+        if(line.is(startNode)) {
+            o = off;
+            return o;
+        }
+            
+        var children = line.children();
+        
+        
+        if(children.length == 0){
+           
+            return line.text().length;
+        }
+      
+        children.each(function(index, el){
+            
+            o+=self.offset($(el), startNode, off);
+            if(startNode.is($(el))) return false;
+            
+        })
+        return o;
+    }
+}
 
 /*----------------------render------------------*/
 
@@ -332,6 +482,7 @@ function Render(doc){
     })
     
     this.source =$(".source");
+    this.source.get(0).spellcheck = false;
     this.hightlight = $(".hightlight");
     this.cursor = $(".cursor");
     this.cursorPosition={
@@ -358,89 +509,80 @@ Render.prototype={
     on:function(){
         var self=this;
         var el = this.container;
-        this.text.bind("select",function(ev){
-            ev.preventDefault();
+       
+        function getSelection(){
+            var selection = document.getSelection();
+            var range = new Range();
+            range.getRange(selection);
+            return range;
+         
+        }
+        
+        self.source.get(0).addEventListener("input",function(e){
+            e.preventDefault();
         })
-
-        this.source.focusin(function(){
-            self.showCursor();
-            self.input.focus();
-
-
-        })
-        this.source.focusout(function(){
-            self.hideCursor();
-            self.input.blur();
-        })
-
-        this.source.mousedown(function(ev){
-            self.status = true;
-
-            var pageX = ev.pageX,
-            pageY = ev.pageY;
-
-            var offset = self.source.offset();
-            self.setCursorPosition(pageX - offset.left, pageY - offset.top-10);
-            var start = this.rangeStart = self.getCursorPosition();
-            self.clearRange()
-            self.setRange(start,start)
-
-
-            self.input.focus();
-            ev.preventDefault();
-
-        })
-        this.source.mouseup(function(ev){
-            self.status = false;
-
-        })
-
-        this.source.mousemove(function(ev){
-            if(self.status){
-                var pageX =ev.pageX;
-                var pageY =ev.pageY;
-                var offset = self.source.offset();
-                self.setCursorPosition(pageX - offset.left, pageY - offset.top-10);
-                var start =  this.rangeStart ;
-
-                var temp;
-                var end = self.getCursorPosition();
-
-                if(start.row>end.row || ((start.row == end.row)&&start.column>end.column)){
-                    temp = start;
-                    start =end;
-                    end = temp;
-                }
-
-                self.setRange(start,end);
-
+        
+        //文本输入
+        self.source.get(0).addEventListener("textInput",function(e){
+            console.log(e)
+            e.preventDefault();
+            var range = getSelection();
+            if(!range.isCollapse){
+                var cursor = self.doc.replace(e.data, range);
             }
+            else {
+                var cursor =  self.doc.insert(e.data, range.start);
+                range = new Range(cursor,cursor);
+                range.position();  
+            }
+            return false;
         })
+        //剪切
+        self.source.get(0).addEventListener("cut",function(e){
+            console.log(e);
+            var range = getSelection();
+            if(!range.isCollapse){
 
-        self.input.bind("cut", function(ev){
+                var position =  self.doc.remove(range);
+                range = new Range(position,position);
+                range.position();
+            }
+        // e.preventDefault();
             
-            })
-
-
-        self.input.bind("keydown",function(ev){
-
+            
+        });
+        self.source.get(0).addEventListener("copy",function(e){
+            console.log(e);
+        // e.preventDefault();
+        })
+        self.source.get(0).addEventListener("paste",function(e){
+            console.log(e);
+            var range = getSelection();
+            if(!range.isCollapse){
+                var cursor = self.doc.replace(e.clipboardData.getData("text"), range);
+            }
+            else {
+                var cursor =  self.doc.insert(e.clipboardData.getData("text"), range.start);
+                range = new Range(cursor,cursor);
+                range.position();  
+            }
+        // e.preventDefault();
+        })
+        
+        
+        self.source.bind("keydown",function(ev){
+            console.log(ev)
             var keyCode = ev.keyCode;
-            
-            console.log(keyCode);
-
-            var height = self.charSize.height,
-            width  =self.charSize.width;
             // tab
             if(keyCode == 9){
-                var cursor = self.doc.insert("    ", self.getRange().end)
-                
-                
-                self.setCursorRowColumn(cursor.row,cursor.column);
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
+                var range = getSelection();
+                var cursor = self.doc.insert("    ", range.start)
+                range = new Range(cursor,cursor);
+                range.position(); 
                 ev.preventDefault();
             }
             //cut
-            if(ev.ctrlKey&&keyCode == 88){
+            /* if(ev.ctrlKey&&keyCode == 88){
                 if(self.hasRange(self.getRange())){
                     var value =self.getRangeValue();
                     
@@ -472,6 +614,7 @@ Render.prototype={
                 }
 
             }
+            */
             
             if(ev.ctrlKey&&keyCode ==90){
                 var position =  self.doc.undo();
@@ -491,87 +634,33 @@ Render.prototype={
             }
             //delete
             if(keyCode ==8){
-                if(self.hasRange(self.getRange())){
-                    var position =  self.doc.remove(self.getRange());
-                    self.setCursorRowColumn(position.row,position.column);
-                    self.setRange(self.getCursorPosition(),self.getCursorPosition())
+                ev.preventDefault();
+                var range = getSelection();
+           
+            
+                
+                if(!range.isCollapse){
+                    var position =  self.doc.remove(range);
+                    range = new Range(position,position);
+               
+                
+                    range.position();
                 } else{
-                    var position =  self.doc.removePrevChar(self.getRange());
-                    self.setCursorRowColumn(position.row,position.column);
-                    self.setRange(self.getCursorPosition(),self.getCursorPosition())
+                    var position =  self.doc.removePrevChar(range);
+                    range = new Range(position,position);
+               
+                
+                    range.position();
                 }
 
                 ev.preventDefault();
             }
            
-            //left
-            else if(keyCode ==37){
-                self.cursorLeftColumn();
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-                ev.preventDefault()
-            }
-            //up
-            else if(keyCode ==38){
-                self.cursorUpRow()
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-                ev.preventDefault()
-            }
-            //right
-            else if(keyCode ==39){
-                self.cursorRightColumn()
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-                ev.preventDefault()
-            }
-            //down
-            else if(keyCode ==40){
-                self.cursorDownRow();
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-                ev.preventDefault()
-            }
-            //enter
-            else if(keyCode ==13){
-        /*
-                self.doc.breakLine({
-                    column:self.cursorPosition.column,
-                    row:self.cursorPosition.row
-                });
-                self.setCursorY(self.cursorPosition.y+height);
-                self.setCursorX(0);
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-                ev.preventDefault()
-*/
-        }
-       
-
+          
+        
 
         })
-        self.input.keyup(function(ev){
-            
-            self.input.select();
-            
-           
-            var height = self.charSize.height,
-            width  =self.charSize.width;
-            var value = self.input.val();
-            if(!value) return;
-           
-            if(self.hasRange(self.getRange())){
-                
-                var cursor = self.doc.replace(value, self.getRange());
-                
-                self.setCursorRowColumn(cursor.row,cursor.column);
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-            }
-            else {
-                
-                var cursor =  self.doc.insert(value, self.getRange().end);
-                
-                self.setCursorRowColumn(cursor.row,cursor.column);
-                self.setRange(self.getCursorPosition(),self.getCursorPosition())
-            }
-            self.input.val("")
-
-        });
+        
 
 
 
@@ -595,6 +684,61 @@ Render.prototype={
 
         this.cursor.toggleClass("show",false)
 
+    },
+    render:function(range){
+        
+        var start =$(range.startContainer);
+        var self = this;
+        
+        self.wrapLine(start);
+        var line = start.parents(".line");
+        console.log(line);
+        self.wrapToken(line);
+            
+       
+        
+        
+        
+    },
+    wrapLine:function(child){
+        
+        var line = child.closest(".line")
+        if(!line) child.wrap('<div class"line"></div>');
+    },
+    wrapToken:function(line){
+        var value =line.text();
+        var newValue ="";
+        console.log(value);
+        var token= tokens(value);
+        token=token?token:[];
+      
+            
+        
+        for(var i=0;i<token.length;i++){
+            if(token[i].type=="string")token[i].value ='"'+token[i].value+'"';
+            if(token[i].type=="comment")token[i].value ='//'+token[i].value;
+
+            newValue+='<span class='+token[i].type+'>'+escapeHTML(token[i].value)+'</span>'
+        }
+        var t =123;
+        var selection =document.getSelection();
+        var range = selection.getRangeAt(0);
+          
+        var start = range.startContainer;
+        var startOffset = range.startOffset;
+        
+        var range = document.createRange();
+        range.setStart(line, 0);
+        range.setEnd(line, 0);
+        console.log(range)
+        
+        line.append($("<div>"));
+      
+       
+        
+    // line.html("");
+       
+    // line.html(newValue);
     },
 
 
@@ -704,25 +848,13 @@ Render.prototype={
                 jslint_worker.onmessage=function(ev){
                     $("#report").html("");
                     $(".num").removeClass("error");
-                    
                     errorMsg = ev.data;
-                    
                     for(var i =0;i<errorMsg.length;i++){
                         $(".num:eq("+(errorMsg[i].line-1)+")").addClass("error")
-                        
-                        
-                        
-           
-                    }
-                    
+                    }   
                 }
-      
                 jslint_worker.postMessage(self.doc.getValue());
-                
-                
-               
-                
-               
+                 
             }catch(e){
                 console.log(e)
             }

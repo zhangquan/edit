@@ -1,168 +1,69 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset='utf-8'>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
 
-        <title>zhangquan</title>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
 
-        <script type="text/javascript" src="assets/jquery-1.6.2.min.js"></script>
-        <script type="text/javascript" src ="assets/json2.js"></script>
-        <link rel="stylesheet" href="assets/editor.css" type="text/css" />
-        <script type="text/javascript" src ="assets/tokens.js"></script>
-        <script type="text/javascript" src ="assets/parse.js"></script>
-        <script type="text/javascript" src ="assets/editor.js"></script>
-        <script type="text/javascript" src ="assets/lighter.js"></script>
-        <script type="text/javascript" src ="assets/jslint.js"></script>
+    <title>Zhangquan.github.com by zhangquan</title>
+  </head>
 
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Zhangquan.github.com</h1>
+        <h2></h2>
+        <a href="https://github.com/zhangquan" class="button"><small>Follow me on</small>GitHub</a>
+      </div>
+    </header>
 
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h3>Welcome to GitHub Pages.</h3>
 
+<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
 
-    <body>
+<pre><code>$ cd your_repo_root/repo_name
+$ git fetch origin
+$ git checkout gh-pages
+</code></pre>
 
-        <div class="main">
+<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
 
-            <div class="menu">
-                <ul>
-                    <li class="open">
-                        <a href="#">打开</a>
-                        <input type="file" class="open-file" name ="name"/>
-                    </li>
-                    <li class="saveas">
-                        <a href="#" target="_blank"  class="save-file">保存为</a>
-                    </li>
+<h3>Designer Templates</h3>
 
-                    <li class="run">
-                        <a href="#"  class="run-file">运行</a>
-                    </li>
+<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
 
-                </ul>
+<h3>Rather Drive Stick?</h3>
 
+<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
 
-            </div>
+<h3>Authors and Contributors</h3>
 
+<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
 
-            <div id="editor" class="editor">
-                <div class="line-num"></div>
-                <div class="source" contenteditable= "true">
-                    <div class="selection">
-                        <div class="range first"></div>
-                        <div class="range center"></div>
-                        <div class="range last"></div>
-                    </div>
-                    <div class="cursor"></div>
-                    <textarea class="input"></textarea>
-                    <div class="text"></div>
-                </div>
+<h3>Support or Contact</h3>
 
-            </div>
+<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+        </section>
 
-
-
-
-            <div style="display:none">   <div><a href="#" onclick="showValue()">value</a>  <a href="#" onclick="showParse()">parse</a></div>
-
-                <pre class="log"></pre>
-            </div>
+        <aside id="sidebar">
 
 
+          <p>This page was generated by <a href="pages.github.com">GitHub Pages</a> using the Architect theme by <a href="http://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
 
-
-        </div>
-        <pre style="display:none" id="code">
-
-(function () {
-    "use strict";
-
-    var $, editor, tokens, showError;
-
-    function showValue() {
-        $(".log").html(editor.doc.getValue());
-    }
-
-    showError = function (msg) {
-        $(".log").html($(".log").html() + msg + "d");
-    };
-
-    function showParse() {
-        var t = tokens(editor.doc.getValue());
-        $(".log").html(JSON.stringify(t));
-    }
-    
-}());
-        </pre>
-        <script type="text/javascript">
-          
-            var fileType ="application/x-javascript";
-            
-
-            var editor =  new Editor($("#code").text())
-            
-            var openfile = $(".open-file");
-            openfile.bind("change",function(ev){
-                
-              
-                var files = ev.target.files;
-               
-                for (var i = 0; i < files.length; i++) {  
-                    var file = files[i];  
-                    var imageType = /application.*/;  
-      
-                    /*if (!file.type.match(imageType)) {  
-                        continue;  
-                    } 
-                     */
-                    
-                    fileType = file.type;
-                 
-      
-                    console.log(file.type)
-                    var reader = new FileReader();  
-                    reader.onload = function(e) { 
-                        
-                        editor.doc.setValue(e.target.result);
-                    };  
-                  
-                    reader.readAsText(file);  
-                  
-                  
-                }
-            })
-            
-            $(".save-file").bind("mousedown",function(e){
-                var BlobBuilder = window.WebKitBlobBuilder ||window.MozBlobBuilder ;
-               
-                var bb =new BlobBuilder();
-                bb.append(editor.doc.getValue())
-                var newReader = new FileReader();
-                newReader.onload = function(e){
-                    console.log(e.target.result);
-                  
-                    $(".save-file").attr("href", e.target.result);
-                    //window.open (e.target.result, 'newwindow', 'height=100, width=400, top=0, left=0, toolbar=no, menubar=no, scrollbars=no, resizable=no,location=n o, status=no') 
-                }
-                newReader.readAsDataURL(bb.getBlob(fileType));
-                
-            
-            })
- 
-            
-            
-            
-          
-            
-            $(".run-file").click(function(ev){
-               
-                ev.stopPropagation();
-                var t = editor.doc.getValue();
-                eval(t);
-            })
-            
-            // In the DOM or worker context:
-
-
-
-        </script>
-
-
-    </body>
+  
+  </body>
 </html>

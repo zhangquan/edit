@@ -1,9 +1,0 @@
-
-
-
-function Lighter(){
-
-}
-Lighter.prototype = {
-    
-}
